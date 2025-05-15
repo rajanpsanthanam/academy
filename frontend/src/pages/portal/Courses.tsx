@@ -103,9 +103,13 @@ export default function Courses({ filter }: CoursesProps) {
       await apiService.courses.complete(courseId);
       await fetchCourses();
       toast.success("Course marked as complete!");
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error marking complete:', err);
-      toast.error("Failed to mark course as complete. Please try again.");
+      if (err.response?.data?.error) {
+        toast.error(err.response.data.error);
+      } else {
+        toast.error("Failed to mark course as complete. Please try again.");
+      }
     } finally {
       setIsEnrolling(prev => ({ ...prev, [courseId]: false }));
     }

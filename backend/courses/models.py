@@ -62,6 +62,15 @@ class Course(models.Model):
         # Soft delete all lessons in these modules
         Lesson.all_objects.filter(module__course=self).update(deleted_at=timezone.now())
 
+    def has_file_submission_assessments(self):
+        """Check if the course has any file submission assessments"""
+        return Assessment.objects.filter(
+            assessable_type='Course',
+            assessable_id=self.id,
+            assessment_type='FILE_SUBMISSION',
+            deleted_at__isnull=True
+        ).exists()
+
 class Module(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(Course, related_name='modules', on_delete=models.CASCADE)

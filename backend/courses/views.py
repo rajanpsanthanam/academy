@@ -265,6 +265,14 @@ class CourseViewSet(viewsets.ModelViewSet):
         try:
             course = self.get_object()
             
+            # Check if course has file submission assessments
+            if course.has_file_submission_assessments():
+                if not request.user.is_staff:
+                    return Response({
+                        'error': 'This course requires admin approval for completion due to file submission assessments',
+                        'requires_admin_approval': True
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
             try:
                 # Get the latest enrollment for this user and course
                 enrollment = CourseEnrollment.objects.filter(
@@ -290,6 +298,44 @@ class CourseViewSet(viewsets.ModelViewSet):
                 return Response(course_serializer.data)
             except CourseEnrollment.DoesNotExist:
                 raise NotFoundError("You are not enrolled in this course")
+        except Exception as e:
+            if isinstance(e, APIError):
+                raise e
+            raise ServerError("Failed to mark course as complete")
+
+    @action(detail=True, methods=['post'])
+    def admin_complete(self, request, pk=None):
+        """Admin endpoint to mark a course as complete for a user"""
+        if not request.user.is_staff:
+            raise PermissionError("Only administrators can use this endpoint")
+            
+        try:
+            course = self.get_object()
+            user_id = request.data.get('user_id')
+            
+            if not user_id:
+                raise ValidationError("user_id is required")
+                
+            try:
+                # Get the latest enrollment for the specified user and course
+                enrollment = CourseEnrollment.objects.filter(
+                    user_id=user_id,
+                    course=course,
+                    status='ENROLLED'
+                ).order_by('-enrolled_at').first()
+                
+                if not enrollment:
+                    raise NotFoundError("User is not enrolled in this course")
+                
+                enrollment.status = 'COMPLETED'
+                enrollment.completed_at = timezone.now()
+                enrollment.save()
+                
+                # Return updated course data
+                course_serializer = CourseSerializer(course, context={'request': request})
+                return Response(course_serializer.data)
+            except CourseEnrollment.DoesNotExist:
+                raise NotFoundError("User is not enrolled in this course")
         except Exception as e:
             if isinstance(e, APIError):
                 raise e

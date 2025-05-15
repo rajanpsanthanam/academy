@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/services/apiService';
-import { Upload, FileText, Trash2, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Trash2, RefreshCw, X, UploadCloud } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface AssessmentSubmissionProps {
   assessment: {
@@ -34,6 +35,7 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSubmissions, setCurrentSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     fetchCurrentSubmissions();
@@ -50,33 +52,54 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
     }
   };
 
+  const validateFile = (file: File): boolean => {
+    if (assessment.assessment_type === 'FILE_SUBMISSION' && assessment.file_submission) {
+      // Validate file type
+      const fileExtension = file.name.split('.').pop()?.toLowerCase();
+      if (!fileExtension || !assessment.file_submission?.allowed_file_types.includes(fileExtension)) {
+        toast.error(`Invalid file type for ${file.name}. Allowed types: ${assessment.file_submission.allowed_file_types.join(', ')}`);
+        return false;
+      }
+
+      // Validate file size
+      const maxSizeInBytes = assessment.file_submission.max_file_size_mb * 1024 * 1024;
+      if (file.size > maxSizeInBytes) {
+        toast.error(`File size exceeds the maximum limit of ${assessment.file_submission.max_file_size_mb}MB for ${file.name}`);
+        return false;
+      }
+
+      return true;
+    }
+    return false;
+  };
+
+  const handleFiles = useCallback((selectedFiles: File[]) => {
+    const validFiles = selectedFiles.filter(validateFile);
+    setFiles(prevFiles => [...prevFiles, ...validFiles]);
+  }, [assessment]);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = Array.from(event.target.files || []);
     if (selectedFiles.length === 0) return;
-
-    // Only validate file type and size for FILE_SUBMISSION type
-    if (assessment.assessment_type === 'FILE_SUBMISSION' && assessment.file_submission) {
-      const validFiles = selectedFiles.filter(file => {
-        // Validate file type
-        const fileExtension = file.name.split('.').pop()?.toLowerCase();
-        if (!fileExtension || !assessment.file_submission?.allowed_file_types.includes(fileExtension)) {
-          toast.error(`Invalid file type for ${file.name}. Allowed types: ${assessment.file_submission.allowed_file_types.join(', ')}`);
-          return false;
-        }
-
-        // Validate file size
-        const maxSizeInBytes = assessment.file_submission.max_file_size_mb * 1024 * 1024;
-        if (file.size > maxSizeInBytes) {
-          toast.error(`File size exceeds the maximum limit of ${assessment.file_submission.max_file_size_mb}MB for ${file.name}`);
-          return false;
-        }
-
-        return true;
-      });
-
-      setFiles(prevFiles => [...prevFiles, ...validFiles]);
-    }
+    handleFiles(selectedFiles);
   };
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
+  }, [handleFiles]);
 
   const removeFile = (index: number) => {
     setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
@@ -193,52 +216,87 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
             {/* File Upload Section */}
             <div className="space-y-2">
               <Label htmlFor="files">Upload Files</Label>
-              <div className="space-y-2">
-                <Input
-                  id="files"
-                  type="file"
-                  onChange={handleFileChange}
-                  accept={assessment.file_submission?.allowed_file_types.map(ext => `.${ext}`).join(',')}
-                  disabled={isSubmitting}
-                  multiple
-                />
-                
-                {/* Selected Files List */}
-                {files.length > 0 && (
-                  <div className="space-y-2">
-                    {files.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{file.name}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+              <div
+                className={cn(
+                  "border-2 border-dashed rounded-lg p-8 text-center transition-colors",
+                  isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25",
+                  "hover:border-primary/50 hover:bg-primary/5"
                 )}
-
-                <Button
-                  onClick={handleSubmit}
-                  disabled={files.length === 0 || isSubmitting}
-                  className="w-full"
-                >
-                  {isSubmitting ? (
-                    'Submitting...'
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Submit Files
-                    </>
-                  )}
-                </Button>
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <UploadCloud className="h-8 w-8 text-muted-foreground" />
+                  <div className="text-sm text-muted-foreground">
+                    <p>Drag and drop your files here, or</p>
+                    <Button
+                      variant="link"
+                      className="text-primary"
+                      onClick={() => document.getElementById('file-input')?.click()}
+                    >
+                      browse
+                    </Button>
+                  </div>
+                  <Input
+                    id="file-input"
+                    type="file"
+                    onChange={handleFileChange}
+                    accept={assessment.file_submission?.allowed_file_types.map(ext => `.${ext}`).join(',')}
+                    disabled={isSubmitting}
+                    multiple
+                    className="hidden"
+                  />
+                </div>
               </div>
+                
+              {/* Selected Files List */}
+              {files.length > 0 && (
+                <div className="space-y-2 mt-4">
+                  {files.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-muted/50"
+                    >
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">{file.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Button
+                onClick={handleSubmit}
+                disabled={files.length === 0 || isSubmitting}
+                className="w-full mt-4"
+              >
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Submit Files
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         )}
