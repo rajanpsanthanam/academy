@@ -289,16 +289,23 @@ class ApiService {
       const response = await api.post(`/courses/${id}/restore/`);
       return response.data;
     },
-    enroll: async (id: string): Promise<{ data: Course }> => {
+    enroll: async (id: string): Promise<Course> => {
       const response = await api.post(`/courses/${id}/enroll/`);
       return response.data;
     },
-    unenroll: async (id: string): Promise<{ data: Course }> => {
+    unenroll: async (id: string): Promise<Course> => {
       const response = await api.post(`/courses/${id}/unenroll/`);
       return response.data;
     },
-    complete: async (id: string): Promise<{ data: Course }> => {
-      const response = await api.post(`/courses/${id}/complete/`);
+    complete: async (id: string, data: { user_id: string }): Promise<Course> => {
+      if (!data?.user_id) {
+        throw new Error('user_id is required');
+      }
+      const response = await api.post(`/courses/${id}/admin_complete/`, { user_id: data.user_id });
+      return response.data;
+    },
+    getEnrollment: async (courseId: string, userId: number): Promise<{ status: string }> => {
+      const response = await api.get(`/courses/${courseId}/enrollments/${userId}/`);
       return response.data;
     },
     modules: {

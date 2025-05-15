@@ -22,6 +22,7 @@ import AdminSettings from '@/pages/admin/Settings';
 import AccessRequests from '@/pages/admin/AccessRequests';
 import Users from '@/pages/admin/Users';
 import { AuthLayout } from '@/components/layout/AuthLayout';
+import CourseSubmissions from '@/pages/admin/CourseSubmissions';
 
 function App() {
   return (
@@ -94,6 +95,7 @@ function App() {
             <Route path="courses" element={<ManageCourses />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="access-requests" element={<AccessRequests />} />
+            <Route path="submissions" element={<CourseSubmissions />} />
           </Route>
 
           {/* Redirect root to login */}

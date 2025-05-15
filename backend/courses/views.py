@@ -274,17 +274,20 @@ class CourseViewSet(viewsets.ModelViewSet):
                     }, status=status.HTTP_400_BAD_REQUEST)
             
             try:
+                # Get the user ID from the request data (for admin users) or use the current user
+                user_id = request.data.get('user_id') if request.user.is_staff else request.user.id
+                
                 # Get the latest enrollment for this user and course
                 enrollment = CourseEnrollment.objects.filter(
-                    user=request.user,
+                    user_id=user_id,
                     course=course,
                     status='ENROLLED'
                 ).order_by('-enrolled_at').first()
                 
                 if not enrollment:
-                    raise NotFoundError("You are not enrolled in this course")
+                    raise NotFoundError("User is not enrolled in this course")
                 
-                print(f"Marking course {course.id} as complete for user {request.user.email}")
+                print(f"Marking course {course.id} as complete for user {user_id}")
                 print(f"Current enrollment status: {enrollment.status}")
                 
                 enrollment.status = 'COMPLETED'
@@ -297,7 +300,7 @@ class CourseViewSet(viewsets.ModelViewSet):
                 course_serializer = CourseSerializer(course, context={'request': request})
                 return Response(course_serializer.data)
             except CourseEnrollment.DoesNotExist:
-                raise NotFoundError("You are not enrolled in this course")
+                raise NotFoundError("User is not enrolled in this course")
         except Exception as e:
             if isinstance(e, APIError):
                 raise e
@@ -306,15 +309,28 @@ class CourseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def admin_complete(self, request, pk=None):
         """Admin endpoint to mark a course as complete for a user"""
+        logger.info("=== Starting admin_complete ===")
+        logger.info(f"Request data: {request.data}")
+        logger.info(f"Request user: {request.user.email}, is_staff: {request.user.is_staff}")
+        
         if not request.user.is_staff:
             raise PermissionError("Only administrators can use this endpoint")
             
         try:
             course = self.get_object()
             user_id = request.data.get('user_id')
+            logger.info(f"Course ID: {course.id}, User ID: {user_id}")
             
             if not user_id:
+                logger.error("user_id is missing from request data")
                 raise ValidationError("user_id is required")
+            
+            # Convert user_id to integer if it's a string
+            try:
+                user_id = int(user_id)
+            except (ValueError, TypeError):
+                logger.error(f"Invalid user_id format: {user_id}")
+                raise ValidationError("Invalid user_id format")
                 
             try:
                 # Get the latest enrollment for the specified user and course
@@ -325,21 +341,27 @@ class CourseViewSet(viewsets.ModelViewSet):
                 ).order_by('-enrolled_at').first()
                 
                 if not enrollment:
+                    logger.error(f"No active enrollment found for user {user_id} in course {course.id}")
                     raise NotFoundError("User is not enrolled in this course")
                 
                 enrollment.status = 'COMPLETED'
                 enrollment.completed_at = timezone.now()
                 enrollment.save()
+                logger.info(f"Successfully marked course {course.id} as complete for user {user_id}")
                 
                 # Return updated course data
                 course_serializer = CourseSerializer(course, context={'request': request})
                 return Response(course_serializer.data)
             except CourseEnrollment.DoesNotExist:
+                logger.error(f"Enrollment not found for user {user_id} in course {course.id}")
                 raise NotFoundError("User is not enrolled in this course")
         except Exception as e:
+            logger.error(f"Error in admin_complete: {str(e)}")
             if isinstance(e, APIError):
                 raise e
             raise ServerError("Failed to mark course as complete")
+        finally:
+            logger.info("=== End admin_complete ===")
 
     @action(detail=False, methods=['get'])
     def test_soft_delete(self, request):
@@ -1027,8 +1049,8 @@ class AssessmentViewSet(viewsets.ModelViewSet):
         try:
             assessment = self.get_object()
             
-            # Check if user is enrolled in the course
-            if assessment.assessable_type == 'Course':
+            # Check if user is enrolled in the course (only for non-admin users)
+            if not request.user.is_staff and assessment.assessable_type == 'Course':
                 try:
                     course = Course.objects.get(id=assessment.assessable_id)
                     enrollment = CourseEnrollment.objects.filter(

@@ -1,4 +1,4 @@
-import { Users, BookOpen, Settings, UserPlus, LayoutDashboard } from 'lucide-react';
+import { Users, BookOpen, Settings, UserPlus, LayoutDashboard, FileText } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 
 interface AdminSidebarProps {
@@ -11,6 +11,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
     { icon: UserPlus, label: 'Access Requests', path: '/admin/access-requests' },
     { icon: Users, label: 'Users', path: '/admin/users' },
     { icon: BookOpen, label: 'Courses', path: '/admin/courses' },
+    { icon: FileText, label: 'Submissions', path: '/admin/submissions' },
     { icon: Settings, label: 'Settings', path: '/admin/settings' },
   ];
 

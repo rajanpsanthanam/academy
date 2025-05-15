@@ -313,5 +313,5 @@ class FileSubmissionSerializer(serializers.ModelSerializer):
     def get_file_url(self, obj):
         request = self.context.get('request')
         if request:
-            return request.build_absolute_uri(f'/media/{obj.file_path}')
+            return request.build_absolute_uri(f'/{obj.file_path}')
         return None 
