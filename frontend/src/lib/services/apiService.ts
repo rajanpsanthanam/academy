@@ -407,11 +407,11 @@ class ApiService {
       return response.data;
     },
     getSubmission: async (assessmentId: string) => {
-      const response = await api.get(`/assessments/${assessmentId}/submission/`);
+      const response = await api.get(`/assessments/${assessmentId}/submissions/`);
       return response.data;
     },
     deleteSubmission: async (assessmentId: string) => {
-      const response = await api.delete(`/assessments/${assessmentId}/submission/`);
+      const response = await api.delete(`/assessments/${assessmentId}/delete_submission/`);
       return response.data;
     },
   };

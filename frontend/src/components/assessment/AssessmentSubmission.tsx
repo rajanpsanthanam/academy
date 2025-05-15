@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/services/apiService';
-import { Upload, FileText, Trash2, RefreshCw } from 'lucide-react';
+import { Upload, FileText, X, RefreshCw } from 'lucide-react';
 
 interface AssessmentSubmissionProps {
   assessment: {
@@ -42,7 +42,8 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
   const fetchCurrentSubmission = async () => {
     try {
       const response = await apiService.assessments.getSubmission(assessment.id);
-      setCurrentSubmission(response.data);
+      // Get the most recent submission from the array
+      setCurrentSubmission(response[0] || null);
     } catch (error) {
       console.error('Error fetching submission:', error);
     } finally {
@@ -166,18 +167,11 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(currentSubmission.file_url, '_blank')}
-                >
-                  View
-                </Button>
-                <Button
                   variant="destructive"
                   size="sm"
                   onClick={handleDelete}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
             </div>
