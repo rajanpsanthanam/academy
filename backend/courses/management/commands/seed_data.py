@@ -42,13 +42,9 @@ class Command(BaseCommand):
         }
 
         # Create or get the main course
-        base_title = "E-commerce Support Fundamentals"
-        timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
-        course_title = f"{base_title} ({timestamp})"
-        
         course, created = Course.objects.get_or_create(
             organization=organization,
-            title=course_title,
+            title="E-commerce Support Fundamentals",
             defaults={
                 "description": "A comprehensive course covering essential skills and knowledge for supporting e-commerce customers and operations.",
                 "status": "PUBLISHED"
@@ -57,7 +53,7 @@ class Command(BaseCommand):
         
         if created:
             course.tags.add(tags['customer_service'], tags['ecommerce'])
-            self.stdout.write(self.style.SUCCESS(f'Created new course: {course_title}'))
+            self.stdout.write(self.style.SUCCESS('Created new course: E-commerce Support Fundamentals'))
         else:
             self.stdout.write(self.style.SUCCESS(f'Using existing course: {course.title}'))
 
