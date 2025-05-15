@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Course, Module, Lesson, Tag
+from .models import Course, Module, Lesson, Tag, Assessment
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
@@ -41,3 +41,14 @@ class LessonAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Lesson.all_objects.all()
+
+@admin.register(Assessment)
+class AssessmentAdmin(admin.ModelAdmin):
+    list_display = ('title', 'assessable_type', 'assessable_id', 'created_at', 'deleted_at')
+    list_filter = ('assessable_type', 'created_at', 'deleted_at')
+    search_fields = ('title', 'description', 'assessable_type')
+    ordering = ('-created_at',)
+    readonly_fields = ('created_at', 'updated_at', 'deleted_at')
+
+    def get_queryset(self, request):
+        return Assessment.all_objects.all()

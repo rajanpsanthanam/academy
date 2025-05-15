@@ -1,78 +1,146 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from courses.models import Course, Module, Lesson, Tag
-from users.models import Organization
+from django.db import transaction
+from courses.models import Course, Module, Lesson, Tag, Assessment
+from users.models import Organization, User
 
 class Command(BaseCommand):
     help = 'Seeds the database with e-commerce support training courses'
 
     def handle(self, *args, **options):
-        # Create or get the Bytemeal organization
-        organization, created = Organization.objects.get_or_create(
-            name="Bytemeal",
-            domain="bytemeal.com",
-            defaults={
-                "is_active": True
-            }
-        )
-        
-        if created:
-            self.stdout.write(self.style.SUCCESS('Created new Bytemeal organization'))
-        else:
-            self.stdout.write(self.style.SUCCESS('Using existing Bytemeal organization'))
+        try:
+            with transaction.atomic():
+                # Create or get the Bytemeal organization
+                organization, created = Organization.objects.get_or_create(
+                    name="Bytemeal",
+                    domain="bytemeal.com",
+                    defaults={
+                        "is_active": True
+                    }
+                )
+                
+                if created:
+                    self.stdout.write(self.style.SUCCESS('Created new Bytemeal organization'))
+                else:
+                    self.stdout.write(self.style.SUCCESS('Using existing Bytemeal organization'))
 
-        # Create tags
-        tags = {
-            'customer_service': Tag.objects.get_or_create(
-                name="Customer Service",
-                description="Skills and knowledge for providing excellent customer service"
-            )[0],
-            'ecommerce': Tag.objects.get_or_create(
-                name="E-commerce",
-                description="E-commerce platform and operations knowledge"
-            )[0],
-            'technical': Tag.objects.get_or_create(
-                name="Technical Support",
-                description="Technical troubleshooting and problem-solving"
-            )[0],
-            'communication': Tag.objects.get_or_create(
-                name="Communication",
-                description="Effective communication skills for support"
-            )[0]
-        }
+                # Create default users for Bytemeal
+                # Normal user
+                normal_user, created = User.objects.get_or_create(
+                    email="user@bytemeal.com",
+                    defaults={
+                        "organization": organization,
+                        "is_approved": True,
+                        "approval_date": timezone.now(),
+                        "is_active": True
+                    }
+                )
+                if created:
+                    self.stdout.write(self.style.SUCCESS('Created new normal user: user@bytemeal.com'))
+                else:
+                    self.stdout.write(self.style.SUCCESS('Using existing normal user: user@bytemeal.com'))
 
-        # Create or get the main course
-        course, created = Course.objects.get_or_create(
-            organization=organization,
-            title="E-commerce Support Fundamentals",
-            defaults={
-                "description": "A comprehensive course covering essential skills and knowledge for supporting e-commerce customers and operations.",
-                "status": "PUBLISHED"
-            }
-        )
-        
-        if created:
-            course.tags.add(tags['customer_service'], tags['ecommerce'])
-            self.stdout.write(self.style.SUCCESS('Created new course: E-commerce Support Fundamentals'))
-        else:
-            self.stdout.write(self.style.SUCCESS(f'Using existing course: {course.title}'))
+                # Admin user
+                admin_user, created = User.objects.get_or_create(
+                    email="admin@bytemeal.com",
+                    defaults={
+                        "organization": organization,
+                        "is_approved": True,
+                        "approval_date": timezone.now(),
+                        "is_active": True,
+                        "is_staff": True
+                    }
+                )
+                if created:
+                    self.stdout.write(self.style.SUCCESS('Created new admin user: admin@bytemeal.com'))
+                else:
+                    self.stdout.write(self.style.SUCCESS('Using existing admin user: admin@bytemeal.com'))
 
-        # Module 1: Introduction to E-commerce Support
-        module1, _ = Module.objects.get_or_create(
-            course=course,
-            title="Introduction to E-commerce Support",
-            defaults={
-                "description": "Understanding the fundamentals of e-commerce support and customer service",
-                "order": 1
-            }
-        )
+                # Create tags with unique constraints
+                tags = {}
+                tag_data = {
+                    'customer_service': {
+                        'name': "Customer Service",
+                        'description': "Skills and knowledge for providing excellent customer service"
+                    },
+                    'ecommerce': {
+                        'name': "E-commerce",
+                        'description': "E-commerce platform and operations knowledge"
+                    },
+                    'technical': {
+                        'name': "Technical Support",
+                        'description': "Technical troubleshooting and problem-solving"
+                    },
+                    'communication': {
+                        'name': "Communication",
+                        'description': "Effective communication skills for support"
+                    }
+                }
 
-        Lesson.objects.get_or_create(
-            module=module1,
-            title="The Role of E-commerce Support",
-            defaults={
-                "description": "Understanding the importance and responsibilities of e-commerce support",
-                "content": """
+                for key, data in tag_data.items():
+                    tag, created = Tag.objects.get_or_create(
+                        name=data['name'],
+                        defaults={'description': data['description']}
+                    )
+                    tags[key] = tag
+                    if created:
+                        self.stdout.write(self.style.SUCCESS(f'Created new tag: {data["name"]}'))
+                    else:
+                        self.stdout.write(self.style.SUCCESS(f'Using existing tag: {data["name"]}'))
+
+                # Create or get the main course with unique constraint
+                course, created = Course.objects.get_or_create(
+                    organization=organization,
+                    title="E-commerce Support Fundamentals",
+                    defaults={
+                        "description": "A comprehensive course covering essential skills and knowledge for supporting e-commerce customers and operations.",
+                        "status": "PUBLISHED"
+                    }
+                )
+                
+                if created:
+                    course.tags.add(tags['customer_service'], tags['ecommerce'])
+                    self.stdout.write(self.style.SUCCESS('Created new course: E-commerce Support Fundamentals'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing course: {course.title}'))
+
+                # Create course assessment with unique constraint
+                assessment, created = Assessment.objects.get_or_create(
+                    assessable_type='Course',
+                    assessable_id=course.id,
+                    defaults={
+                        "title": "E-commerce Support Fundamentals Assessment",
+                        "description": "Final assessment to evaluate understanding of e-commerce support fundamentals"
+                    }
+                )
+                
+                if created:
+                    self.stdout.write(self.style.SUCCESS('Created new assessment for E-commerce Support Fundamentals'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing assessment: {assessment.title}'))
+
+                # Module 1: Introduction to E-commerce Support
+                module1, created = Module.objects.get_or_create(
+                    course=course,
+                    title="Introduction to E-commerce Support",
+                    defaults={
+                        "description": "Understanding the fundamentals of e-commerce support and customer service",
+                        "order": 1
+                    }
+                )
+
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new module: {module1.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing module: {module1.title}'))
+
+                # Create lessons for module 1
+                lesson1, created = Lesson.objects.get_or_create(
+                    module=module1,
+                    title="The Role of E-commerce Support",
+                    defaults={
+                        "description": "Understanding the importance and responsibilities of e-commerce support",
+                        "content": """
 # The Role of E-commerce Support
 
 ## Key Responsibilities
@@ -94,17 +162,22 @@ class Command(BaseCommand):
 - Problem-solving approach
 - Product knowledge
 - Technical proficiency
-                """,
-                "order": 1
-            }
-        )
+                        """,
+                        "order": 1
+                    }
+                )
 
-        Lesson.objects.get_or_create(
-            module=module1,
-            title="E-commerce Platforms Overview",
-            defaults={
-                "description": "Understanding different e-commerce platforms and their features",
-                "content": """
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new lesson: {lesson1.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing lesson: {lesson1.title}'))
+
+                lesson2, created = Lesson.objects.get_or_create(
+                    module=module1,
+                    title="E-commerce Platforms Overview",
+                    defaults={
+                        "description": "Understanding different e-commerce platforms and their features",
+                        "content": """
 # E-commerce Platforms Overview
 
 ## Common Platforms
@@ -126,27 +199,38 @@ class Command(BaseCommand):
 - Troubleshooting steps
 - Platform updates
 - Integration support
-                """,
-                "order": 2
-            }
-        )
+                        """,
+                        "order": 2
+                    }
+                )
 
-        # Module 2: Customer Service Excellence
-        module2, _ = Module.objects.get_or_create(
-            course=course,
-            title="Customer Service Excellence",
-            defaults={
-                "description": "Mastering customer service skills for e-commerce support",
-                "order": 2
-            }
-        )
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new lesson: {lesson2.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing lesson: {lesson2.title}'))
 
-        Lesson.objects.get_or_create(
-            module=module2,
-            title="Effective Communication",
-            defaults={
-                "description": "Learning to communicate effectively with customers",
-                "content": """
+                # Module 2: Customer Service Excellence
+                module2, created = Module.objects.get_or_create(
+                    course=course,
+                    title="Customer Service Excellence",
+                    defaults={
+                        "description": "Mastering customer service skills for e-commerce support",
+                        "order": 2
+                    }
+                )
+
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new module: {module2.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing module: {module2.title}'))
+
+                # Create lessons for module 2
+                lesson3, created = Lesson.objects.get_or_create(
+                    module=module2,
+                    title="Effective Communication",
+                    defaults={
+                        "description": "Learning to communicate effectively with customers",
+                        "content": """
 # Effective Communication in E-commerce Support
 
 ## Communication Channels
@@ -169,17 +253,22 @@ class Command(BaseCommand):
 - Complaints
 - Returns and refunds
 - Product information
-                """,
-                "order": 1
-            }
-        )
+                        """,
+                        "order": 1
+                    }
+                )
 
-        Lesson.objects.get_or_create(
-            module=module2,
-            title="Handling Difficult Customers",
-            defaults={
-                "description": "Techniques for managing challenging customer interactions",
-                "content": """
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new lesson: {lesson3.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing lesson: {lesson3.title}'))
+
+                lesson4, created = Lesson.objects.get_or_create(
+                    module=module2,
+                    title="Handling Difficult Customers",
+                    defaults={
+                        "description": "Techniques for managing challenging customer interactions",
+                        "content": """
 # Handling Difficult Customers
 
 ## Understanding Customer Frustration
@@ -200,27 +289,38 @@ class Command(BaseCommand):
 - Offer solutions
 - Document interactions
 - Escalate when necessary
-                """,
-                "order": 2
-            }
-        )
+                        """,
+                        "order": 2
+                    }
+                )
 
-        # Module 3: Technical Support
-        module3, _ = Module.objects.get_or_create(
-            course=course,
-            title="Technical Support Fundamentals",
-            defaults={
-                "description": "Essential technical skills for e-commerce support",
-                "order": 3
-            }
-        )
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new lesson: {lesson4.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing lesson: {lesson4.title}'))
 
-        Lesson.objects.get_or_create(
-            module=module3,
-            title="Common Technical Issues",
-            defaults={
-                "description": "Understanding and resolving common technical problems",
-                "content": """
+                # Module 3: Technical Support
+                module3, created = Module.objects.get_or_create(
+                    course=course,
+                    title="Technical Support Fundamentals",
+                    defaults={
+                        "description": "Essential technical skills for e-commerce support",
+                        "order": 3
+                    }
+                )
+
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new module: {module3.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing module: {module3.title}'))
+
+                # Create lessons for module 3
+                lesson5, created = Lesson.objects.get_or_create(
+                    module=module3,
+                    title="Common Technical Issues",
+                    defaults={
+                        "description": "Understanding and resolving common technical problems",
+                        "content": """
 # Common Technical Issues in E-commerce
 
 ## Website Issues
@@ -242,17 +342,22 @@ class Command(BaseCommand):
 - Solution implementation
 - Verification
 - Documentation
-                """,
-                "order": 1
-            }
-        )
+                        """,
+                        "order": 1
+                    }
+                )
 
-        Lesson.objects.get_or_create(
-            module=module3,
-            title="Security and Privacy",
-            defaults={
-                "description": "Understanding security and privacy in e-commerce",
-                "content": """
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new lesson: {lesson5.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing lesson: {lesson5.title}'))
+
+                lesson6, created = Lesson.objects.get_or_create(
+                    module=module3,
+                    title="Security and Privacy",
+                    defaults={
+                        "description": "Understanding security and privacy in e-commerce",
+                        "content": """
 # Security and Privacy in E-commerce
 
 ## Security Best Practices
@@ -272,9 +377,18 @@ class Command(BaseCommand):
 - Response procedures
 - Customer communication
 - Prevention measures
-                """,
-                "order": 2
-            }
-        )
+                        """,
+                        "order": 2
+                    }
+                )
 
-        self.stdout.write(self.style.SUCCESS('Successfully seeded support training courses')) 
+                if created:
+                    self.stdout.write(self.style.SUCCESS(f'Created new lesson: {lesson6.title}'))
+                else:
+                    self.stdout.write(self.style.SUCCESS(f'Using existing lesson: {lesson6.title}'))
+
+                self.stdout.write(self.style.SUCCESS('Successfully seeded support training courses'))
+
+        except Exception as e:
+            self.stdout.write(self.style.ERROR(f'Error seeding data: {str(e)}'))
+            raise 

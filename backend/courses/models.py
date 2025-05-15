@@ -150,3 +150,29 @@ class CourseEnrollment(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.course.title}"
+
+class Assessment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessable_type = models.CharField(max_length=50)  # 'Course', 'Module', or 'Lesson'
+    assessable_id = models.UUIDField()
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)  # Making it optional with blank=True
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['assessable_type', 'assessable_id'], name='assessable_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.assessable_type}"
+
+    def delete(self, *args, **kwargs):
+        self.deleted_at = timezone.now()
+        self.save()
