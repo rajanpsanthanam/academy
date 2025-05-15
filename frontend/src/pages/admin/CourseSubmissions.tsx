@@ -65,7 +65,8 @@ export default function CourseSubmissions() {
     try {
       setLoading(true);
       // Get all courses
-      const coursesList = await apiService.courses.list();
+      const coursesResponse = await apiService.courses.list();
+      const coursesList = coursesResponse.results || [];
       const coursesWithSubmissions: CourseWithSubmissions[] = [];
 
       // For each course, get its assessments and their submissions
@@ -73,9 +74,19 @@ export default function CourseSubmissions() {
         if (course.assessments) {
           const courseSubmissions: FileSubmission[] = [];
           for (const assessment of course.assessments) {
-            if (assessment.assessment_type === 'FILE_SUBMISSION') {
-              const submissionsResponse = await apiService.assessments.getSubmission(assessment.id);
-              courseSubmissions.push(...submissionsResponse);
+            try {
+              // Check if this is a file submission assessment
+              const assessmentDetails = await apiService.assessments.get(assessment.id);
+              if (assessmentDetails.assessment_type === 'FILE_SUBMISSION') {
+                const submissionsResponse = await apiService.assessments.getSubmission(assessment.id);
+                // Ensure submissionsResponse is an array before spreading
+                const submissions = Array.isArray(submissionsResponse) ? submissionsResponse : [];
+                courseSubmissions.push(...submissions);
+              }
+            } catch (err) {
+              console.error(`Failed to fetch assessment details for ${assessment.id}:`, err);
+              // Continue with next assessment
+              continue;
             }
           }
           

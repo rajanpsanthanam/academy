@@ -413,6 +413,10 @@ class ApiService {
       });
       return response.data;
     },
+    get: async (assessmentId: string) => {
+      const response = await api.get(`/assessments/${assessmentId}/`);
+      return response.data;
+    },
     getSubmission: async (assessmentId: string) => {
       const response = await api.get(`/assessments/${assessmentId}/submissions/`);
       return response.data;
