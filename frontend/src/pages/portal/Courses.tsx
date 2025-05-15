@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, ChevronRight, Tag, CheckCircle, UserPlus, UserMinus, RotateCcw, FileText } from 'lucide-react';
+import { BookOpen, ChevronRight, Tag, CheckCircle, UserPlus, UserMinus, RotateCcw, FileText, X } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Accordion,
@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ContentWrapper } from '@/components/layout/ContentWrapper';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { AssessmentSubmission } from '@/components/assessment/AssessmentSubmission';
 
 interface CoursesProps {
   filter?: 'PUBLISHED' | 'DRAFT' | 'COMPLETED';
@@ -282,18 +283,16 @@ export default function Courses({ filter }: CoursesProps) {
         {course.assessments && course.assessments.length > 0 && (
           <div className="space-y-2">
             <h3 className="text-sm font-medium text-muted-foreground px-2">Assessments</h3>
-            <div className="space-y-1">
+            <div className="space-y-4">
               {course.assessments.map((assessment) => (
-                <Button
+                <AssessmentSubmission
                   key={assessment.id}
-                  variant="ghost"
-                  className="w-full justify-start h-9 px-4"
-                >
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">{assessment.title}</span>
-                  </div>
-                </Button>
+                  assessment={assessment}
+                  onSubmissionComplete={() => {
+                    // Refresh course data after submission
+                    fetchCourses();
+                  }}
+                />
               ))}
             </div>
           </div>

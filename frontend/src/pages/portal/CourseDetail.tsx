@@ -15,7 +15,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
-import { AssessmentSubmission } from '@/components/assessment/AssessmentSubmission';
 
 export function CourseDetail() {
   const { courseId } = useParams<{ courseId: string }>();
@@ -130,27 +129,6 @@ export function CourseDetail() {
             ))}
           </Accordion>
         </div>
-
-        {/* Course Assessments */}
-        {course.assessments && course.assessments.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-semibold">Course Assessments</h2>
-            <div className="grid gap-4">
-              {course.assessments.map((assessment) => (
-                <AssessmentSubmission
-                  key={assessment.id}
-                  assessment={assessment}
-                  onSubmissionComplete={() => {
-                    // Refresh course data after submission
-                    if (courseId) {
-                      fetchCourse(courseId);
-                    }
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
