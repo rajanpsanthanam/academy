@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, ChevronRight, Tag, CheckCircle, UserPlus, UserMinus, RotateCcw } from 'lucide-react';
+import { BookOpen, ChevronRight, Tag, CheckCircle, UserPlus, UserMinus, RotateCcw, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Accordion,
@@ -237,41 +237,68 @@ export default function Courses({ filter }: CoursesProps) {
       return (
         <div className="text-sm text-muted-foreground text-center py-4">
           Enroll in this course to access {course.modules?.length || 0} modules
+          {course.assessments && course.assessments.length > 0 && (
+            <span> and {course.assessments.length} assessment{course.assessments.length > 1 ? 's' : ''}</span>
+          )}
         </div>
       );
     }
 
     return (
-      <Accordion type="single" collapsible className="w-full space-y-3">
-        {(course.modules || []).map((module) => (
-          <AccordionItem key={module.id} value={module.id.toString()} className="border rounded-lg overflow-hidden">
-            <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50">
-              <div className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-                <span className="text-base font-medium">{module.title}</span>
-                <span className="text-xs text-muted-foreground ml-2">
-                  {module.lessons.length} lessons
-                </span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-1 p-2">
-                {module.lessons.map((lesson) => (
-                  <Button
-                    key={lesson.id}
-                    variant="ghost"
-                    className="w-full justify-start h-9 px-4"
-                    onClick={() => handleLessonClick(course.id, module.id, lesson.id)}
-                  >
-                    <span className="text-sm">{lesson.title}</span>
-                    <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
-                  </Button>
-                ))}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      <div className="space-y-4">
+        {/* Modules Section */}
+        <Accordion type="single" collapsible className="w-full space-y-3">
+          {(course.modules || []).map((module) => (
+            <AccordionItem key={module.id} value={module.id.toString()} className="border rounded-lg overflow-hidden">
+              <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-base font-medium">{module.title}</span>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {module.lessons.length} lessons
+                  </span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-1 p-2">
+                  {module.lessons.map((lesson) => (
+                    <Button
+                      key={lesson.id}
+                      variant="ghost"
+                      className="w-full justify-start h-9 px-4"
+                      onClick={() => handleLessonClick(course.id, module.id, lesson.id)}
+                    >
+                      <span className="text-sm">{lesson.title}</span>
+                      <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+
+        {/* Assessments Section */}
+        {course.assessments && course.assessments.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground px-2">Assessments</h3>
+            <div className="space-y-1">
+              {course.assessments.map((assessment) => (
+                <Button
+                  key={assessment.id}
+                  variant="ghost"
+                  className="w-full justify-start h-9 px-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{assessment.title}</span>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -302,6 +329,21 @@ export default function Courses({ filter }: CoursesProps) {
                   <span className="text-xs text-muted-foreground ml-2">
                     {course.modules?.length || 0} modules
                   </span>
+                  {course.assessments && course.assessments.length > 0 && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <FileText className="h-4 w-4" />
+                            <span className="text-xs">{course.assessments.length}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Course has {course.assessments.length} assessment{course.assessments.length > 1 ? 's' : ''}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </AccordionTrigger>
               <div className="ml-4">
