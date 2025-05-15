@@ -238,7 +238,6 @@ class FileSubmission(models.Model):
 
     class Meta:
         ordering = ['-submitted_at']
-        unique_together = ['assessment', 'user']  # One submission per user per assessment
 
     def __str__(self):
         return f"{self.user.email} - {self.assessment.title} - {self.file_name}"

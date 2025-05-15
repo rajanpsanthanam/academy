@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/services/apiService';
-import { Upload, FileText, X, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Trash2, RefreshCw } from 'lucide-react';
 
 interface AssessmentSubmissionProps {
   assessment: {
@@ -30,86 +30,93 @@ interface Submission {
 }
 
 export function AssessmentSubmission({ assessment, onSubmissionComplete }: AssessmentSubmissionProps) {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [currentSubmission, setCurrentSubmission] = useState<Submission | null>(null);
+  const [currentSubmissions, setCurrentSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchCurrentSubmission();
+    fetchCurrentSubmissions();
   }, [assessment.id]);
 
-  const fetchCurrentSubmission = async () => {
+  const fetchCurrentSubmissions = async () => {
     try {
       const response = await apiService.assessments.getSubmission(assessment.id);
-      // Get the most recent submission from the array
-      setCurrentSubmission(response[0] || null);
+      setCurrentSubmissions(response || []);
     } catch (error) {
-      console.error('Error fetching submission:', error);
+      console.error('Error fetching submissions:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (!selectedFile) return;
+    const selectedFiles = Array.from(event.target.files || []);
+    if (selectedFiles.length === 0) return;
 
     // Only validate file type and size for FILE_SUBMISSION type
     if (assessment.assessment_type === 'FILE_SUBMISSION' && assessment.file_submission) {
-      // Validate file type
-      const fileExtension = selectedFile.name.split('.').pop()?.toLowerCase();
-      if (!fileExtension || !assessment.file_submission.allowed_file_types.includes(fileExtension)) {
-        toast.error(`Invalid file type. Allowed types: ${assessment.file_submission.allowed_file_types.join(', ')}`);
-        return;
-      }
+      const validFiles = selectedFiles.filter(file => {
+        // Validate file type
+        const fileExtension = file.name.split('.').pop()?.toLowerCase();
+        if (!fileExtension || !assessment.file_submission?.allowed_file_types.includes(fileExtension)) {
+          toast.error(`Invalid file type for ${file.name}. Allowed types: ${assessment.file_submission.allowed_file_types.join(', ')}`);
+          return false;
+        }
 
-      // Validate file size
-      const maxSizeInBytes = assessment.file_submission.max_file_size_mb * 1024 * 1024;
-      if (selectedFile.size > maxSizeInBytes) {
-        toast.error(`File size exceeds the maximum limit of ${assessment.file_submission.max_file_size_mb}MB`);
-        return;
-      }
+        // Validate file size
+        const maxSizeInBytes = assessment.file_submission.max_file_size_mb * 1024 * 1024;
+        if (file.size > maxSizeInBytes) {
+          toast.error(`File size exceeds the maximum limit of ${assessment.file_submission.max_file_size_mb}MB for ${file.name}`);
+          return false;
+        }
+
+        return true;
+      });
+
+      setFiles(prevFiles => [...prevFiles, ...validFiles]);
     }
+  };
 
-    setFile(selectedFile);
+  const removeFile = (index: number) => {
+    setFiles(prevFiles => prevFiles.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
-    if (!file) {
-      toast.error('Please select a file to submit');
+    if (files.length === 0) {
+      toast.error('Please select at least one file to submit');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        await apiService.assessments.submit(assessment.id, formData);
+      }
       
-      const response = await apiService.assessments.submit(assessment.id, formData);
-      toast.success(response.message || 'Assessment submitted successfully');
-      setFile(null);
-      await fetchCurrentSubmission();
+      toast.success('Files submitted successfully');
+      setFiles([]);
+      await fetchCurrentSubmissions();
       onSubmissionComplete?.();
     } catch (error: any) {
-      console.error('Error submitting assessment:', error);
-      toast.error(error.response?.data?.detail || 'Failed to submit assessment. Please try again.');
+      console.error('Error submitting files:', error);
+      toast.error(error.response?.data?.detail || 'Failed to submit files. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async () => {
-    if (!currentSubmission) return;
-
+  const handleDelete = async (submissionId: string) => {
     try {
-      await apiService.assessments.deleteSubmission(assessment.id);
-      toast.success('Submission deleted successfully');
-      setCurrentSubmission(null);
+      await apiService.assessments.deleteSubmission(assessment.id, submissionId);
+      toast.success('File deleted successfully');
+      setCurrentSubmissions(prev => prev.filter(sub => sub.id !== submissionId));
       onSubmissionComplete?.();
     } catch (error: any) {
-      console.error('Error deleting submission:', error);
-      toast.error(error.response?.data?.detail || 'Failed to delete submission. Please try again.');
+      console.error('Error deleting file:', error);
+      toast.error(error.response?.data?.detail || 'Failed to delete file. Please try again.');
     }
   };
 
@@ -153,70 +160,86 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
 
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Loading...</div>
-        ) : currentSubmission ? (
+        ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">{currentSubmission.file_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Submitted on {new Date(currentSubmission.submitted_at).toLocaleString()}
-                  </p>
-                </div>
+            {/* Current Submissions */}
+            {currentSubmissions.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Submitted Files</h3>
+                {currentSubmissions.map((submission) => (
+                  <div key={submission.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{submission.file_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Submitted on {new Date(submission.submitted_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(submission.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
+            )}
+
+            {/* File Upload Section */}
+            <div className="space-y-2">
+              <Label htmlFor="files">Upload Files</Label>
+              <div className="space-y-2">
+                <Input
+                  id="files"
+                  type="file"
+                  onChange={handleFileChange}
+                  accept={assessment.file_submission?.allowed_file_types.map(ext => `.${ext}`).join(',')}
+                  disabled={isSubmitting}
+                  multiple
+                />
+                
+                {/* Selected Files List */}
+                {files.length > 0 && (
+                  <div className="space-y-2">
+                    {files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 border rounded">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{file.name}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleDelete}
+                  onClick={handleSubmit}
+                  disabled={files.length === 0 || isSubmitting}
+                  className="w-full"
                 >
-                  <X className="h-4 w-4" />
+                  {isSubmitting ? (
+                    'Submitting...'
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Submit Files
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setCurrentSubmission(null)}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Submit New File
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Label htmlFor="file">Upload File</Label>
-            <div className="flex items-center gap-4">
-              <Input
-                id="file"
-                type="file"
-                onChange={handleFileChange}
-                accept={assessment.file_submission?.allowed_file_types.map(ext => `.${ext}`).join(',')}
-                disabled={isSubmitting}
-              />
-              {file && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span>{file.name}</span>
-                </div>
-              )}
-            </div>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={!file || isSubmitting}
-              className="w-full"
-            >
-              {isSubmitting ? (
-                'Submitting...'
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Submit Assessment
-                </>
-              )}
-            </Button>
           </div>
         )}
       </CardContent>

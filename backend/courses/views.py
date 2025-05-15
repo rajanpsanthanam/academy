@@ -1093,18 +1093,16 @@ class AssessmentViewSet(viewsets.ModelViewSet):
                 for chunk in file.chunks():
                     destination.write(chunk)
 
-            # Create or update FileSubmission record
-            submission, created = FileSubmission.objects.update_or_create(
+            # Create new FileSubmission record
+            submission = FileSubmission.objects.create(
                 assessment=assessment,
                 user=request.user,
-                defaults={
-                    'file_name': file.name,
-                    'file_path': file_path,
-                    'file_size': file.size
-                }
+                file_name=file.name,
+                file_path=file_path,
+                file_size=file.size
             )
 
-            logger.info(f"File submission record {'created' if created else 'updated'}: {submission.id}")
+            logger.info(f"File submission record created: {submission.id}")
             logger.info(f"File saved successfully at {file_path}")
 
             serializer = FileSubmissionSerializer(submission, context={'request': request})
@@ -1127,10 +1125,15 @@ class AssessmentViewSet(viewsets.ModelViewSet):
         """Delete a user's submission for an assessment"""
         try:
             assessment = self.get_object()
+            submission_id = request.query_params.get('submission_id')
             
+            if not submission_id:
+                raise ValidationError("Submission ID is required")
+
             # Get the submission
             try:
                 submission = FileSubmission.objects.get(
+                    id=submission_id,
                     assessment=assessment,
                     user=request.user
                 )
