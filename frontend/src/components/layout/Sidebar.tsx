@@ -45,7 +45,9 @@ export function Sidebar({ items, className = '', onClose }: SidebarProps) {
         )}
         {items.map((item) => {
           const Icon = item.icon;
-          const isActive = location.pathname.startsWith(item.path);
+          const isActive = item.path === '/admin' || item.path === '/portal'
+            ? location.pathname === item.path
+            : location.pathname.startsWith(item.path);
           const hasSubItems = item.subItems && item.subItems.length > 0;
           const isExpanded = expandedItems.includes(item.path);
           
