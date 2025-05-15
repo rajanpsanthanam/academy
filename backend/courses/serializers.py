@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Module, Lesson, CourseEnrollment, Tag
+from .models import Course, Module, Lesson, CourseEnrollment, Tag, Assessment
 from core.exceptions import ValidationError
 import re
 import logging
@@ -86,13 +86,14 @@ class CourseSerializer(serializers.ModelSerializer):
         required=False
     )
     active_enrollments_count = serializers.SerializerMethodField()
+    assessments = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = ['id', 'organization', 'organization_name', 'organization_domain', 
                  'title', 'description', 'status', 'tags', 'tag_ids',
                  'created_at', 'updated_at', 'modules', 'enrollment', 
-                 'active_enrollments_count', 'deleted_at']
+                 'active_enrollments_count', 'deleted_at', 'assessments']
         read_only_fields = ['organization', 'organization_name', 'organization_domain', 
                           'created_at', 'updated_at', 'active_enrollments_count']
 
@@ -127,6 +128,25 @@ class CourseSerializer(serializers.ModelSerializer):
             course=obj,
             status='ENROLLED'
         ).count()
+
+    def get_assessments(self, obj):
+        request = self.context.get('request')
+        show_deleted = request and request.query_params.get('show_deleted', 'false').lower() == 'true'
+        
+        from .models import Assessment
+        if show_deleted:
+            assessments = Assessment.all_objects.filter(
+                assessable_type='Course',
+                assessable_id=obj.id
+            )
+        else:
+            assessments = Assessment.all_objects.filter(
+                assessable_type='Course',
+                assessable_id=obj.id,
+                deleted_at__isnull=True
+            )
+            
+        return AssessmentSerializer(assessments, many=True, context=self.context).data
 
     def validate_title(self, value):
         request = self.context.get('request')
@@ -244,4 +264,11 @@ class CourseEnrollmentSerializer(serializers.ModelSerializer):
     def validate_status(self, value):
         if value not in ['ENROLLED', 'COMPLETED', 'DROPPED']:
             raise ValidationError("Invalid enrollment status")
-        return value 
+        return value
+
+class AssessmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Assessment
+        fields = ['id', 'assessable_type', 'assessable_id', 'title', 'description', 
+                 'created_at', 'updated_at', 'deleted_at']
+        read_only_fields = ['created_at', 'updated_at', 'deleted_at'] 

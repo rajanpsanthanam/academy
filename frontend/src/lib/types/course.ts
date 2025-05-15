@@ -34,6 +34,17 @@ export interface Tag {
   updated_at: string;
 }
 
+export interface Assessment {
+  id: string;
+  assessable_type: string;
+  assessable_id: string;
+  title: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+}
+
 export interface Course {
   id: string;
   title: string;
@@ -42,6 +53,7 @@ export interface Course {
   thumbnail_url?: string;
   modules: Module[];
   tags: Tag[];
+  assessments: Assessment[];
   created_at: string;
   updated_at: string;
   enrollment?: {

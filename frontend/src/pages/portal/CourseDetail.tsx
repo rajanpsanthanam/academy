@@ -127,6 +127,25 @@ export function CourseDetail() {
             ))}
           </Accordion>
         </div>
+
+        {/* Course Assessments */}
+        {course.assessments && course.assessments.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-semibold">Course Assessments</h2>
+            <div className="grid gap-4">
+              {course.assessments.map((assessment) => (
+                <Card key={assessment.id}>
+                  <CardHeader>
+                    <CardTitle>{assessment.title}</CardTitle>
+                    {assessment.description && (
+                      <CardDescription>{assessment.description}</CardDescription>
+                    )}
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
