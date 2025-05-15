@@ -49,7 +49,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'first_name', 'last_name', 'is_approved',
             'approval_date', 'organization', 'dark_mode', 'is_staff', 'is_superuser',
-            'is_active'
+            'is_active', 'last_login'
         ]
         read_only_fields = ['id', 'is_approved', 'approval_date']
 

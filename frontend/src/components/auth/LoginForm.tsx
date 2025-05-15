@@ -82,12 +82,17 @@ export function LoginForm() {
       });
 
       toast.success('Login Successful', {
-        description: 'Redirecting to portal...',
+        description: 'Redirecting...',
       });
 
       // Add a small delay before navigation to ensure toast is shown
       setTimeout(() => {
-        navigate('/portal');
+        // Redirect to admin portal if user is staff
+        if (response.user.is_staff) {
+          navigate('/admin');
+        } else {
+          navigate('/portal');
+        }
       }, 1000);
     } catch (err: any) {
       console.error('Login error:', err);
