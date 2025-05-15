@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Search, Menu } from 'lucide-react';
 import { UserMenu } from './UserMenu';
 import { SearchBar } from './SearchBar';
-import { AbstractLogo } from './AbstractLogo';
+import { OrganizationLogo } from './OrganizationLogo';
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -31,15 +31,20 @@ export function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          {logoUrl ? (
-            <img
-              src={logoUrl}
-              alt={state.user?.organization?.name || "Organization"}
-              className="h-8 w-auto"
-            />
-          ) : (
-            <AbstractLogo />
-          )}
+          <div className="flex-1 flex justify-center">
+            {logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={state.user?.organization?.name || "Organization"}
+                className="h-8 w-auto"
+              />
+            ) : (
+              <OrganizationLogo 
+                name={state.user?.organization?.name || "Organization"} 
+                className="h-8 w-8"
+              />
+            )}
+          </div>
           <div className="md:hidden">
             <UserMenu />
           </div>
