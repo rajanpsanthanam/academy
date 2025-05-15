@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Module, Lesson, CourseEnrollment, Tag, Assessment
+from .models import Course, Module, Lesson, CourseEnrollment, Tag, Assessment, FileSubmissionAssessment
 from core.exceptions import ValidationError
 import re
 import logging
@@ -267,8 +267,34 @@ class CourseEnrollmentSerializer(serializers.ModelSerializer):
         return value
 
 class AssessmentSerializer(serializers.ModelSerializer):
+    file_submission = serializers.SerializerMethodField()
+
     class Meta:
         model = Assessment
         fields = ['id', 'assessable_type', 'assessable_id', 'title', 'description', 
-                 'created_at', 'updated_at', 'deleted_at']
-        read_only_fields = ['created_at', 'updated_at', 'deleted_at'] 
+                 'assessment_type', 'file_submission', 'created_at', 'updated_at', 'deleted_at']
+        read_only_fields = ['created_at', 'updated_at', 'deleted_at']
+
+    def get_file_submission(self, obj):
+        if obj.assessment_type == 'FILE_SUBMISSION':
+            try:
+                file_submission = obj.file_submission
+                return FileSubmissionAssessmentSerializer(file_submission).data
+            except FileSubmissionAssessment.DoesNotExist:
+                return None
+        return None
+
+class FileSubmissionAssessmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FileSubmissionAssessment
+        fields = ['id', 'allowed_file_types', 'max_file_size_mb', 'submission_instructions',
+                 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+    def validate_allowed_file_types(self, value):
+        if not isinstance(value, list):
+            raise ValidationError("allowed_file_types must be a list")
+        for ext in value:
+            if not isinstance(ext, str) or not ext.isalnum():
+                raise ValidationError("File extensions must be alphanumeric strings")
+        return value 

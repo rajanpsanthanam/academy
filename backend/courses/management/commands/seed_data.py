@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
-from courses.models import Course, Module, Lesson, Tag, Assessment
+from courses.models import Course, Module, Lesson, Tag, Assessment, FileSubmissionAssessment
 from users.models import Organization, User
 
 class Command(BaseCommand):
@@ -110,11 +110,19 @@ class Command(BaseCommand):
                     assessable_id=course.id,
                     defaults={
                         "title": "E-commerce Support Fundamentals Assessment",
-                        "description": "Final assessment to evaluate understanding of e-commerce support fundamentals"
+                        "description": "Final assessment to evaluate understanding of e-commerce support fundamentals",
+                        "assessment_type": "FILE_SUBMISSION"
                     }
                 )
                 
                 if created:
+                    # Create file submission details for the assessment
+                    FileSubmissionAssessment.objects.create(
+                        assessment=assessment,
+                        allowed_file_types=['pdf', 'doc', 'docx'],
+                        max_file_size_mb=5,
+                        submission_instructions="Please submit your answers in a document format. Include your name and date in the document header."
+                    )
                     self.stdout.write(self.style.SUCCESS('Created new assessment for E-commerce Support Fundamentals'))
                 else:
                     self.stdout.write(self.style.SUCCESS(f'Using existing assessment: {assessment.title}'))

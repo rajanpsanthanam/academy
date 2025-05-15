@@ -31,7 +31,7 @@ export function Header({ onMenuClick }: HeaderProps) {
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="flex-1 flex justify-center">
+          <div className="flex items-center">
             {logoUrl ? (
               <img
                 src={logoUrl}

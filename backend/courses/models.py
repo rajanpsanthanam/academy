@@ -157,6 +157,14 @@ class Assessment(models.Model):
     assessable_id = models.UUIDField()
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)  # Making it optional with blank=True
+    assessment_type = models.CharField(
+        max_length=50,
+        choices=[
+            ('FILE_SUBMISSION', 'File Submission'),
+            # Add more assessment types here as needed
+        ],
+        default='FILE_SUBMISSION'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -176,3 +184,28 @@ class Assessment(models.Model):
     def delete(self, *args, **kwargs):
         self.deleted_at = timezone.now()
         self.save()
+
+class FileSubmissionAssessment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessment = models.OneToOneField(
+        Assessment,
+        related_name='file_submission',
+        on_delete=models.CASCADE
+    )
+    allowed_file_types = models.JSONField(
+        default=list,
+        help_text="List of allowed file extensions (e.g., ['pdf', 'doc', 'docx'])"
+    )
+    max_file_size_mb = models.PositiveIntegerField(
+        default=10,
+        help_text="Maximum file size in megabytes"
+    )
+    submission_instructions = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"File Submission for {self.assessment.title}"
