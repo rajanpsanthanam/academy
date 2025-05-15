@@ -266,7 +266,7 @@ class ApiService {
       search?: string;
       status?: string;
       ordering?: string;
-    }): Promise<Course[]> => {
+    }): Promise<PaginatedResponse<Course>> => {
       const response = await api.get('/courses/', { params });
       return response.data;
     },

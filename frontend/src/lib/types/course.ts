@@ -56,27 +56,19 @@ export interface Course {
   title: string;
   description: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  thumbnail_url?: string;
-  modules: Module[];
-  tags: Tag[];
-  assessments: Assessment[];
+  organization: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
   enrollment?: {
-    id: string;
-    status: 'ENROLLED' | 'COMPLETED' | 'DROPPED';
-    progress: number;
-    created_at: string;
-    updated_at: string;
-    enrollment_history?: Array<{
-      id: string;
-      status: 'COMPLETED' | 'DROPPED';
-      progress: number;
-      enrolled_at: string;
-      dropped_at?: string;
-      completed_at?: string;
-    }>;
+    status: 'ENROLLED' | 'DROPPED' | 'COMPLETED';
   };
-  deleted_at?: string | null;
+  modules?: Module[];
   active_enrollments_count?: number;
+  assessments?: Array<{
+    id: string;
+    title: string;
+    description?: string;
+    type: string;
+  }>;
 } 

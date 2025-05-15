@@ -753,10 +753,17 @@ export function CoursesList() {
   const [totalCount, setTotalCount] = useState(0);
   const [ordering, setOrdering] = useState('-created_at');
 
+  const enrollmentStats = {
+    total: courses.length,
+    enrolled: courses.filter(course => course.enrollment?.status === "ENROLLED").length,
+    dropped: courses.filter(course => course.enrollment?.status === "DROPPED").length,
+    completed: courses.filter(course => course.enrollment?.status === "COMPLETED").length
+  };
+
   const fetchCourses = async () => {
     try {
       setLoading(true);
-      const coursesList = await apiService.courses.list({
+      const response = await apiService.courses.list({
         page,
         page_size: pageSize,
         search: debouncedSearchQuery,
@@ -765,9 +772,9 @@ export function CoursesList() {
         show_deleted: showDeleted
       });
       
-      console.log('Courses list:', coursesList);
-      setCourses(coursesList);
-      setTotalCount(coursesList.length);
+      console.log('Courses list:', response);
+      setCourses(response.results);
+      setTotalCount(response.count);
     } catch (error: unknown) {
       console.error('Failed to fetch courses:', {
         error,
@@ -907,7 +914,7 @@ export function CoursesList() {
         </div>
       </div>
       <div className="space-y-4">
-        {courses.map((course) => (
+        {Array.isArray(courses) && courses.map((course) => (
           <CourseItem 
             key={course.id} 
             course={course} 
@@ -917,9 +924,6 @@ export function CoursesList() {
         ))}
       </div>
       <div className="flex items-center justify-between border-t pt-4">
-        <div className="text-sm text-muted-foreground">
-          Showing {courses.length} of {totalCount} courses
-        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

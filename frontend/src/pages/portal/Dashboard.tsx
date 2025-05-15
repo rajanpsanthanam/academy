@@ -17,8 +17,12 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const coursesData = await apiService.courses.list();
-        setCourses(coursesData);
+        const response = await apiService.courses.list();
+        if (response && 'results' in response) {
+          setCourses(response.results);
+        } else {
+          setCourses([]);
+        }
       } catch (error) {
         console.error('Failed to fetch courses:', error);
         setCourses([]);

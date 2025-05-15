@@ -13,17 +13,23 @@ from django.utils import timezone
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
+class CoursePagination(PageNumberPagination):
+    page_size = 12  # Show 12 courses per page
+    page_size_query_param = 'page_size'
+    max_page_size = 100  # Maximum number of courses that can be requested per page
 
 # Create your views here.
 
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated, OrganizationPermission]
-    pagination_class = None  # Use global pagination settings
+    pagination_class = CoursePagination
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
