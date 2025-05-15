@@ -153,6 +153,12 @@ class CourseEnrollment(models.Model):
 
 class Assessment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        'users.Organization',
+        related_name='assessments',
+        on_delete=models.CASCADE,
+        db_index=True
+    )
     assessable_type = models.CharField(max_length=50)  # 'Course', 'Module', or 'Lesson'
     assessable_id = models.UUIDField()
     title = models.CharField(max_length=255)
@@ -176,6 +182,7 @@ class Assessment(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['assessable_type', 'assessable_id'], name='assessable_idx'),
+            models.Index(fields=['organization'], name='assessment_org_idx'),
         ]
 
     def __str__(self):
@@ -209,3 +216,29 @@ class FileSubmissionAssessment(models.Model):
 
     def __str__(self):
         return f"File Submission for {self.assessment.title}"
+
+class FileSubmission(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    assessment = models.ForeignKey(
+        Assessment,
+        related_name='submissions',
+        on_delete=models.CASCADE
+    )
+    user = models.ForeignKey(
+        'users.User',
+        related_name='file_submissions',
+        on_delete=models.CASCADE
+    )
+    file_name = models.CharField(max_length=255)
+    file_path = models.CharField(max_length=512)
+    file_size = models.PositiveIntegerField(help_text="File size in bytes")
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+        unique_together = ['assessment', 'user']  # One submission per user per assessment
+
+    def __str__(self):
+        return f"{self.user.email} - {self.assessment.title} - {self.file_name}"

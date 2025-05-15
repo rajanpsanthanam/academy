@@ -15,33 +15,36 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
+import { AssessmentSubmission } from '@/components/assessment/AssessmentSubmission';
 
 export function CourseDetail() {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchCourse = async (id: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await apiService.courses.get(id);
+      setCourse(response);
+    } catch (err) {
+      console.error('Error fetching course:', err);
+      setError('Failed to load course. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchCourse = async () => {
-      if (!courseId) return;
-
-      try {
-        const courseData = await apiService.courses.get(courseId);
-        setCourse(courseData);
-      } catch (err) {
-        setError("Failed to load course. Please try again later.");
-        console.error("Error fetching course:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourse();
+    if (courseId) {
+      fetchCourse(courseId);
+    }
   }, [courseId]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-3/4" />
@@ -134,14 +137,16 @@ export function CourseDetail() {
             <h2 className="text-2xl font-semibold">Course Assessments</h2>
             <div className="grid gap-4">
               {course.assessments.map((assessment) => (
-                <Card key={assessment.id}>
-                  <CardHeader>
-                    <CardTitle>{assessment.title}</CardTitle>
-                    {assessment.description && (
-                      <CardDescription>{assessment.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                </Card>
+                <AssessmentSubmission
+                  key={assessment.id}
+                  assessment={assessment}
+                  onSubmissionComplete={() => {
+                    // Refresh course data after submission
+                    if (courseId) {
+                      fetchCourse(courseId);
+                    }
+                  }}
+                />
               ))}
             </div>
           </div>

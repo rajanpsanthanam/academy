@@ -111,7 +111,8 @@ class Command(BaseCommand):
                     defaults={
                         "title": "E-commerce Support Fundamentals Assessment",
                         "description": "Final assessment to evaluate understanding of e-commerce support fundamentals",
-                        "assessment_type": "FILE_SUBMISSION"
+                        "assessment_type": "FILE_SUBMISSION",
+                        "organization": organization
                     }
                 )
                 

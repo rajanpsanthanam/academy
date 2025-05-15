@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Module, Lesson, CourseEnrollment, Tag, Assessment, FileSubmissionAssessment
+from .models import Course, Module, Lesson, CourseEnrollment, Tag, Assessment, FileSubmissionAssessment, FileSubmission
 from core.exceptions import ValidationError
 import re
 import logging
@@ -297,4 +297,21 @@ class FileSubmissionAssessmentSerializer(serializers.ModelSerializer):
         for ext in value:
             if not isinstance(ext, str) or not ext.isalnum():
                 raise ValidationError("File extensions must be alphanumeric strings")
-        return value 
+        return value
+
+class FileSubmissionSerializer(serializers.ModelSerializer):
+    user_email = serializers.EmailField(source='user.email', read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FileSubmission
+        fields = ['id', 'assessment', 'user', 'user_email', 'file_name', 'file_path', 
+                 'file_size', 'submitted_at', 'file_url', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'file_path', 'file_size', 'submitted_at', 
+                          'created_at', 'updated_at']
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(f'/media/{obj.file_path}')
+        return None 

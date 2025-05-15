@@ -17,6 +17,18 @@ class OrganizationPermission(permissions.BasePermission):
         # Special handling for Organization model
         if isinstance(obj, Organization):
             return obj == request.user.organization
+
+        # For models that don't have a direct organization field
+        # but are linked to an organization through relationships
+        if hasattr(obj, 'assessable_type') and hasattr(obj, 'assessable_id'):
+            from courses.models import Course
+            try:
+                if obj.assessable_type == 'Course':
+                    course = Course.objects.get(id=obj.assessable_id)
+                    return course.organization == request.user.organization
+            except Course.DoesNotExist:
+                return False
+
         # For other models, check their organization field
         obj_organization = getattr(obj, 'organization', None)
         if not obj_organization:

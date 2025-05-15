@@ -1,8 +1,8 @@
 from django.shortcuts import render, get_object_or_404
 from rest_framework import viewsets
 from django.http import Http404
-from .models import Course, Module, Lesson, CourseEnrollment, Tag, User
-from .serializers import CourseSerializer, ModuleSerializer, LessonSerializer, CourseEnrollmentSerializer, TagSerializer
+from .models import Course, Module, Lesson, CourseEnrollment, Tag, User, Assessment, FileSubmissionAssessment, FileSubmission
+from .serializers import CourseSerializer, ModuleSerializer, LessonSerializer, CourseEnrollmentSerializer, TagSerializer, AssessmentSerializer, FileSubmissionSerializer
 from core.exceptions import ValidationError, NotFoundError, ServerError, APIError, PermissionError
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,6 +14,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import Q
 from rest_framework.views import APIView
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -937,3 +938,219 @@ class StatsViewSet(APIView):
         except Exception as e:
             logger.error(f"Error fetching stats: {str(e)}")
             raise ServerError("Failed to fetch statistics")
+
+class AssessmentViewSet(viewsets.ModelViewSet):
+    serializer_class = AssessmentSerializer
+    permission_classes = [IsAuthenticated, OrganizationPermission]
+
+    def get_queryset(self):
+        logger.info("=== Starting AssessmentViewSet.get_queryset ===")
+        logger.info(f"User: {self.request.user.email}, is_staff: {self.request.user.is_staff}")
+        logger.info(f"User organization: {self.request.user.organization}")
+        
+        queryset = Assessment.objects.filter(organization=self.request.user.organization)
+        logger.info(f"Found {queryset.count()} assessments for user's organization")
+        logger.info("=== End AssessmentViewSet.get_queryset ===")
+        return queryset
+
+    def perform_create(self, serializer):
+        try:
+            # Get the course associated with this assessment
+            course_id = serializer.validated_data.get('assessable_id')
+            if serializer.validated_data.get('assessable_type') == 'Course':
+                try:
+                    course = Course.objects.get(id=course_id)
+                    # Set the organization from the course
+                    serializer.save(organization=course.organization)
+                except Course.DoesNotExist:
+                    raise ValidationError("Associated course not found")
+            else:
+                raise ValidationError("Only course assessments are supported")
+        except Exception as e:
+            if isinstance(e, APIError):
+                raise e
+            raise ServerError("Failed to create assessment")
+
+    def has_object_permission(self, request, view, obj):
+        # Now we can directly check the organization field
+        return obj.organization == request.user.organization
+
+    @action(detail=True, methods=['get'])
+    def submissions(self, request, pk=None):
+        """Get all submissions for an assessment"""
+        try:
+            assessment = self.get_object()
+            
+            # Check if user is enrolled in the course
+            if assessment.assessable_type == 'Course':
+                try:
+                    course = Course.objects.get(id=assessment.assessable_id)
+                    enrollment = CourseEnrollment.objects.filter(
+                        user=request.user,
+                        course=course,
+                        status='ENROLLED'
+                    ).first()
+                    
+                    if not enrollment:
+                        raise PermissionError("You must be enrolled in the course to view submissions")
+                except Course.DoesNotExist:
+                    raise NotFoundError("Associated course not found")
+
+            # Get submissions
+            submissions = FileSubmission.objects.filter(assessment=assessment)
+            
+            # If not staff, only show user's own submissions
+            if not request.user.is_staff:
+                submissions = submissions.filter(user=request.user)
+            
+            serializer = FileSubmissionSerializer(submissions, many=True, context={'request': request})
+            return Response(serializer.data)
+            
+        except Exception as e:
+            if isinstance(e, APIError):
+                raise e
+            raise ServerError("Failed to fetch submissions")
+
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        logger.info("=== Starting AssessmentViewSet.submit ===")
+        logger.info(f"User: {request.user.email}")
+        logger.info(f"Assessment ID: {pk}")
+        
+        try:
+            assessment = self.get_object()
+            logger.info(f"Found assessment: {assessment.id}")
+
+            # Get the course associated with this assessment
+            try:
+                course = Course.objects.get(id=assessment.assessable_id)
+                logger.info(f"Found associated course: {course.id} - {course.title}")
+            except Course.DoesNotExist:
+                logger.error(f"Course not found for assessment {assessment.id}")
+                raise NotFoundError("Associated course not found")
+
+            # Check if user is enrolled in the course
+            enrollment = CourseEnrollment.objects.filter(
+                user=request.user,
+                course=course,
+                status='ENROLLED'
+            ).first()
+
+            logger.info(f"User {request.user.email} enrollment status: {enrollment.status if enrollment else 'Not enrolled'}")
+            logger.info(f"User organization: {request.user.organization}")
+            logger.info(f"Course organization: {course.organization}")
+
+            if not enrollment:
+                logger.error(f"User {request.user.email} is not enrolled in course {course.id}")
+                raise PermissionError("You must be enrolled in the course to submit assessments")
+
+            # Validate assessment type
+            if assessment.assessment_type != 'FILE_SUBMISSION':
+                logger.error(f"Invalid assessment type: {assessment.assessment_type}")
+                raise ValidationError("This assessment does not accept file submissions")
+
+            # Get file submission configuration
+            try:
+                file_submission = assessment.file_submission
+                logger.info(f"Found file submission config: allowed_types={file_submission.allowed_file_types}, max_size={file_submission.max_file_size_mb}MB")
+            except FileSubmissionAssessment.DoesNotExist:
+                logger.error(f"File submission config not found for assessment {assessment.id}")
+                raise ValidationError("File submission configuration not found for this assessment")
+
+            # Check if file was provided
+            if 'file' not in request.FILES:
+                logger.error("No file provided in request")
+                raise ValidationError("No file provided")
+
+            file = request.FILES['file']
+            logger.info(f"Received file: {file.name} ({file.size} bytes)")
+
+            # Validate file type
+            file_extension = file.name.split('.')[-1].lower()
+            if file_extension not in file_submission.allowed_file_types:
+                logger.error(f"Invalid file type: {file_extension}. Allowed types: {file_submission.allowed_file_types}")
+                raise ValidationError(f"Invalid file type. Allowed types: {', '.join(file_submission.allowed_file_types)}")
+
+            # Validate file size
+            max_size_bytes = file_submission.max_file_size_mb * 1024 * 1024
+            if file.size > max_size_bytes:
+                logger.error(f"File size {file.size} exceeds limit {max_size_bytes}")
+                raise ValidationError(f"File size exceeds the maximum limit of {file_submission.max_file_size_mb}MB")
+
+            # Create assessments directory if it doesn't exist
+            assessment_dir = os.path.join('media', 'assessments', str(assessment.id))
+            os.makedirs(assessment_dir, exist_ok=True)
+            logger.info(f"Created assessment directory: {assessment_dir}")
+
+            # Generate unique filename with timestamp
+            timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{timestamp}_{file.name}"
+            file_path = os.path.join(assessment_dir, filename)
+            logger.info(f"Generated file path: {file_path}")
+
+            # Save the file
+            with open(file_path, 'wb+') as destination:
+                for chunk in file.chunks():
+                    destination.write(chunk)
+
+            # Create or update FileSubmission record
+            submission, created = FileSubmission.objects.update_or_create(
+                assessment=assessment,
+                user=request.user,
+                defaults={
+                    'file_name': file.name,
+                    'file_path': file_path,
+                    'file_size': file.size
+                }
+            )
+
+            logger.info(f"File submission record {'created' if created else 'updated'}: {submission.id}")
+            logger.info(f"File saved successfully at {file_path}")
+
+            serializer = FileSubmissionSerializer(submission, context={'request': request})
+            return Response(serializer.data)
+
+        except ValidationError as e:
+            logger.error(f"Validation error in assessment submission: {str(e)}")
+            raise e
+        except PermissionError as e:
+            logger.error(f"Permission error in assessment submission: {str(e)}")
+            raise e
+        except Exception as e:
+            logger.error(f"Error processing assessment submission: {str(e)}")
+            if isinstance(e, APIError):
+                raise e
+            raise ServerError("Failed to submit assessment")
+
+    @action(detail=True, methods=['delete'])
+    def delete_submission(self, request, pk=None):
+        """Delete a user's submission for an assessment"""
+        try:
+            assessment = self.get_object()
+            
+            # Get the submission
+            try:
+                submission = FileSubmission.objects.get(
+                    assessment=assessment,
+                    user=request.user
+                )
+            except FileSubmission.DoesNotExist:
+                raise NotFoundError("No submission found for this assessment")
+
+            # Delete the file from storage
+            try:
+                if os.path.exists(submission.file_path):
+                    os.remove(submission.file_path)
+            except Exception as e:
+                logger.error(f"Error deleting file: {str(e)}")
+                # Continue with deletion even if file removal fails
+
+            # Delete the submission record
+            submission.delete()
+            
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except Exception as e:
+            if isinstance(e, APIError):
+                raise e
+            raise ServerError("Failed to delete submission")

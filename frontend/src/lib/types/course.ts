@@ -40,6 +40,12 @@ export interface Assessment {
   assessable_id: string;
   title: string;
   description: string;
+  assessment_type: string;
+  file_submission?: {
+    allowed_file_types: string[];
+    max_file_size_mb: number;
+    submission_instructions: string;
+  };
   created_at: string;
   updated_at: string;
   deleted_at?: string;

@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import { Course, Module, Lesson } from '@/lib/types/course';
 import { AccessRequest } from '@/lib/types/accessRequest';
-import { User, LoginResponse } from '@/lib/types/auth';
+import { User as AuthUser, LoginResponse } from '@/lib/types/auth';
 
 interface PaginatedResponse<T> {
   count: number;
@@ -395,6 +395,25 @@ class ApiService {
   // Stats endpoint
   stats = {
     get: () => api.get('/stats/'),
+  };
+
+  assessments = {
+    submit: async (assessmentId: string, formData: FormData) => {
+      const response = await api.post(`/assessments/${assessmentId}/submit/`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    },
+    getSubmission: async (assessmentId: string) => {
+      const response = await api.get(`/assessments/${assessmentId}/submission/`);
+      return response.data;
+    },
+    deleteSubmission: async (assessmentId: string) => {
+      const response = await api.delete(`/assessments/${assessmentId}/submission/`);
+      return response.data;
+    },
   };
 }
 
