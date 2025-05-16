@@ -286,19 +286,28 @@ class AssessmentSerializer(serializers.ModelSerializer):
         return None
 
     def validate(self, data):
+        logger.info("=== Starting AssessmentSerializer.validate ===")
+        logger.info(f"Validating data: {data}")
+        
         if data.get('assessment_type') == 'FILE_SUBMISSION':
             file_submission_data = data.get('file_submission_data', {})
+            logger.info(f"File submission data: {file_submission_data}")
+            
             if not file_submission_data:
+                logger.error("File submission data is missing")
                 raise ValidationError("File submission data is required for FILE_SUBMISSION type")
             
             allowed_file_types = file_submission_data.get('allowed_file_types', [])
             if not isinstance(allowed_file_types, list) or not allowed_file_types:
+                logger.error(f"Invalid allowed_file_types: {allowed_file_types}")
                 raise ValidationError("allowed_file_types must be a non-empty list")
             
             max_file_size = file_submission_data.get('max_file_size_mb')
             if not isinstance(max_file_size, (int, float)) or max_file_size <= 0:
+                logger.error(f"Invalid max_file_size_mb: {max_file_size}")
                 raise ValidationError("max_file_size_mb must be a positive number")
         
+        logger.info("=== End AssessmentSerializer.validate ===")
         return data
 
 class FileSubmissionAssessmentSerializer(serializers.ModelSerializer):

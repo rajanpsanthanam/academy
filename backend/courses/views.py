@@ -1074,32 +1074,53 @@ class AssessmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        logger.info("=== Starting AssessmentViewSet.perform_create ===")
         try:
             # Get the course associated with this assessment
             course_id = serializer.validated_data.get('assessable_id')
+            logger.info(f"Course ID from validated data: {course_id}")
+            
             if serializer.validated_data.get('assessable_type') == 'Course':
                 try:
-                    course = Course.objects.get(id=course_id)
+                    # First check if the course exists and belongs to the user's organization
+                    course = Course.objects.get(
+                        id=course_id,
+                        organization=self.request.user.organization
+                    )
+                    logger.info(f"Found course: {course.id} - {course.title}")
+                    logger.info(f"Course organization: {course.organization}")
+                    
+                    # Remove file_submission_data from validated_data before saving
+                    file_submission_data = serializer.validated_data.pop('file_submission_data', {})
+                    
                     # Set the organization from the course
                     assessment = serializer.save(organization=course.organization)
+                    logger.info(f"Created assessment: {assessment.id} - {assessment.title}")
                     
                     # Create FileSubmissionAssessment if assessment_type is FILE_SUBMISSION
                     if assessment.assessment_type == 'FILE_SUBMISSION':
-                        file_submission_data = serializer.validated_data.get('file_submission', {})
-                        FileSubmissionAssessment.objects.create(
+                        logger.info(f"File submission data: {file_submission_data}")
+                        
+                        file_submission = FileSubmissionAssessment.objects.create(
                             assessment=assessment,
                             allowed_file_types=file_submission_data.get('allowed_file_types', ['pdf', 'doc', 'docx']),
                             max_file_size_mb=file_submission_data.get('max_file_size_mb', 10),
                             submission_instructions=file_submission_data.get('submission_instructions', '')
                         )
+                        logger.info(f"Created file submission assessment: {file_submission.id}")
                 except Course.DoesNotExist:
-                    raise ValidationError("Associated course not found")
+                    logger.error(f"Course not found with ID: {course_id} in organization: {self.request.user.organization}")
+                    raise ValidationError("Associated course not found or you don't have permission to access it")
             else:
+                logger.error(f"Invalid assessable type: {serializer.validated_data.get('assessable_type')}")
                 raise ValidationError("Only course assessments are supported")
         except Exception as e:
+            logger.error(f"Error in perform_create: {str(e)}", exc_info=True)
             if isinstance(e, APIError):
                 raise e
             raise ServerError("Failed to create assessment")
+        finally:
+            logger.info("=== End AssessmentViewSet.perform_create ===")
 
     def has_object_permission(self, request, view, obj):
         # Now we can directly check the organization field

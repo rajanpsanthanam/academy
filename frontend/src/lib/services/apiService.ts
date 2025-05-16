@@ -436,18 +436,13 @@ class ApiService {
       title: string;
       description: string;
       assessment_type: string;
-      file_submission?: {
+      file_submission_data?: {
         allowed_file_types: string[];
         max_file_size_mb: number;
         submission_instructions: string;
       };
     }) => {
-      const { file_submission, ...rest } = data;
-      const requestData = {
-        ...rest,
-        file_submission_data: file_submission
-      };
-      const response = await api.post('/assessments/', requestData);
+      const response = await api.post('/assessments/', data);
       return response.data;
     },
   };
