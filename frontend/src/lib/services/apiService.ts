@@ -19,7 +19,7 @@ interface Organization {
 }
 
 const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-const TOKEN_KEY = 'token';
+const TOKEN_KEY = 'access_token';
 const REFRESH_TOKEN_KEY = 'refresh_token';
 
 // Create axios instance with default config
@@ -61,6 +61,10 @@ api.interceptors.request.use((config) => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // If no token is found, redirect to login
+      window.location.href = '/login';
+      return Promise.reject('No authentication token found');
     }
   }
 
@@ -107,11 +111,6 @@ api.interceptors.response.use(
 
       const response = await refreshApi.post('/auth/token_refresh/', {
         refresh: refreshToken
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${refreshToken}`
-        }
       });
 
       const { access } = response.data;
@@ -264,7 +263,7 @@ class ApiService {
       page?: number;
       page_size?: number;
       search?: string;
-      status?: string;
+      view?: string;
       ordering?: string;
     }): Promise<PaginatedResponse<Course>> => {
       const response = await api.get('/courses/', { params });

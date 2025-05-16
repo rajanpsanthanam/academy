@@ -68,7 +68,16 @@ export interface Course {
   assessments?: Array<{
     id: string;
     title: string;
-    description?: string;
-    type: string;
+    description: string;
+    assessment_type: string;
+    file_submission?: {
+      allowed_file_types: string[];
+      max_file_size_mb: number;
+      submission_instructions: string;
+    };
+  }>;
+  tags?: Array<{
+    id: string;
+    name: string;
   }>;
 } 
