@@ -55,7 +55,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AssessmentSheet } from './AssessmentSheet';
+import { AssessmentForm } from './AssessmentForm';
 
 interface EditFormProps {
   title: string;
@@ -210,8 +210,6 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
   const [newLessonTitle, setNewLessonTitle] = useState('');
   const [newLessonDescription, setNewLessonDescription] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
-  const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<'DRAFT' | 'PUBLISHED' | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isAssessmentSheetOpen, setIsAssessmentSheetOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<any>(null);
@@ -295,35 +293,6 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
       toast.success('Lesson added successfully');
     } catch (error) {
       toast.error('Failed to add lesson');
-    }
-  };
-
-  const handleToggleStatus = async () => {
-    const targetStatus = course.status === 'DRAFT' ? 'PUBLISHED' : 'DRAFT';
-    setNewStatus(targetStatus);
-    setIsStatusChangeDialogOpen(true);
-  };
-
-  const confirmStatusChange = async () => {
-    try {
-      if (!newStatus) return;
-
-      await apiService.courses.update(course.id, {
-        ...course,
-        status: newStatus,
-      });
-      
-      // Update the course in the UI
-      course.status = newStatus;
-      await onUpdate();
-      
-      toast.success(newStatus === 'DRAFT' ? 'Course marked as draft' : 'Course published');
-    } catch (error) {
-      console.error('Failed to update course status:', error);
-      toast.error('Failed to update course status');
-    } finally {
-      setIsStatusChangeDialogOpen(false);
-      setNewStatus(null);
     }
   };
 
@@ -515,72 +484,162 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
         <AccordionContent>
           <div className="space-y-4 p-4">
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Assessments</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditingAssessment(null);
-                    setIsAssessmentSheetOpen(true);
-                  }}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Assessment
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {course.assessments?.map((assessment) => (
-                  <div
-                    key={assessment.id}
-                    className="flex items-center justify-between p-3 border rounded-lg"
-                  >
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <h4 className="font-medium">{assessment.title}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {assessment.assessment_type}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setEditingAssessment(assessment);
-                          setIsAssessmentSheetOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Assessment</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this assessment? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={() => handleDeleteAssessment(assessment.id)}>
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+              <p className="text-sm">{course.description}</p>
             </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-muted-foreground">Assessments</h3>
+                {!course.deleted_at && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Assessment
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Add New Assessment</DialogTitle>
+                        <DialogDescription>
+                          Create a new assessment for this course.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <form onSubmit={async (e) => {
+                        e.preventDefault();
+                        const formData = new FormData(e.currentTarget);
+                        const title = formData.get('title') as string;
+                        const description = formData.get('description') as string;
+                        const allowedFileTypes = (formData.get('fileTypes') as string).split(',').map(type => type.trim());
+                        const maxFileSize = Number(formData.get('maxFileSize'));
+                        const submissionInstructions = formData.get('instructions') as string;
+
+                        if (!title.trim()) {
+                          toast.error('Assessment title is required');
+                          return;
+                        }
+
+                        try {
+                          await apiService.assessments.create({
+                            assessable_type: 'Course',
+                            assessable_id: course.id,
+                            title,
+                            description,
+                            assessment_type: 'FILE_SUBMISSION',
+                            file_submission: {
+                              allowed_file_types: allowedFileTypes,
+                              max_file_size_mb: maxFileSize,
+                              submission_instructions: submissionInstructions,
+                            },
+                          });
+                          
+                          await onUpdate();
+                          toast.success('Assessment created successfully');
+                          
+                          const dialog = document.querySelector('[role="dialog"]');
+                          if (dialog) {
+                            (dialog as HTMLDialogElement).close();
+                          }
+                        } catch (error) {
+                          toast.error('Failed to create assessment');
+                        }
+                      }}>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="title">Title</Label>
+                            <Input
+                              id="title"
+                              name="title"
+                              placeholder="Enter assessment title"
+                              className="w-full"
+                              required
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="description">Description</Label>
+                            <Textarea
+                              id="description"
+                              name="description"
+                              placeholder="Enter assessment description"
+                              className="w-full"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="fileTypes">Allowed File Types</Label>
+                            <Input
+                              id="fileTypes"
+                              name="fileTypes"
+                              placeholder="pdf, doc, docx"
+                              defaultValue="pdf, doc, docx"
+                              className="w-full"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="maxFileSize">Maximum File Size (MB)</Label>
+                            <Input
+                              id="maxFileSize"
+                              name="maxFileSize"
+                              type="number"
+                              defaultValue={10}
+                              min={1}
+                              max={100}
+                              className="w-full"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="instructions">Submission Instructions</Label>
+                            <Textarea
+                              id="instructions"
+                              name="instructions"
+                              placeholder="Enter submission instructions"
+                              className="w-full"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex justify-end space-x-2">
+                          <Button 
+                            type="button"
+                            variant="outline" 
+                            onClick={() => {
+                              const dialog = document.querySelector('[role="dialog"]');
+                              if (dialog) {
+                                (dialog as HTMLDialogElement).close();
+                              }
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                          <Button type="submit">
+                            Create Assessment
+                          </Button>
+                        </div>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
+              {course.assessments && course.assessments.length > 0 ? (
+                <div className="space-y-2">
+                  {course.assessments.map((assessment) => (
+                    <div key={assessment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{assessment.title}</p>
+                        {assessment.description && (
+                          <p className="text-sm text-muted-foreground">{assessment.description}</p>
+                        )}
+                      </div>
+                      <Badge variant="outline">
+                        {assessment.assessment_type}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No assessments added yet.</p>
+              )}
+            </div>
+
             <Accordion type="multiple" className="w-full space-y-2">
               {(course.modules || [])?.filter(module => showDeleted || !module.deleted_at)
                 .map((module) => (
@@ -834,7 +893,6 @@ export function CoursesList() {
   const [showDeleted, setShowDeleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, 800);
-  const [statusFilter, setStatusFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
@@ -854,7 +912,6 @@ export function CoursesList() {
         page,
         page_size: pageSize,
         search: debouncedSearchQuery,
-        status: statusFilter,
         ordering,
         show_deleted: showDeleted
       });
@@ -876,16 +933,11 @@ export function CoursesList() {
 
   useEffect(() => {
     fetchCourses();
-  }, [showDeleted, page, pageSize, debouncedSearchQuery, statusFilter, ordering]);
+  }, [showDeleted, page, pageSize, debouncedSearchQuery, ordering]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
     setPage(1); // Reset to first page when searching
-  };
-
-  const handleStatusFilter = (status: string) => {
-    setStatusFilter(status === "ALL" ? "" : status);
-    setPage(1); // Reset to first page when changing filter
   };
 
   const handleOrdering = (field: string) => {
@@ -922,19 +974,6 @@ export function CoursesList() {
                 value={searchQuery}
                 onChange={handleSearch}
               />
-            </div>
-            <div className="w-40">
-              <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Status</SelectItem>
-                  <SelectItem value="DRAFT">Draft</SelectItem>
-                  <SelectItem value="PUBLISHED">Published</SelectItem>
-                  <SelectItem value="ARCHIVED">Archived</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <Button
