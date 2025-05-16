@@ -409,6 +409,7 @@ function Courses({ filter }: CoursesProps) {
                 <AssessmentSubmission
                   key={assessment.id}
                   assessment={assessment}
+                  courseId={course.id}
                   courseStatus={course.enrollment?.status}
                   onSubmissionComplete={() => {
                     // Refresh course data after submission

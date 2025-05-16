@@ -1064,39 +1064,38 @@ class AssessmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, OrganizationPermission]
 
     def get_queryset(self):
-        logger.info("=== Starting AssessmentViewSet.get_queryset ===")
-        logger.info(f"User: {self.request.user.email}, is_staff: {self.request.user.is_staff}")
-        logger.info(f"User organization: {self.request.user.organization}")
+        course_id = self.kwargs.get('course_id')
+        if not course_id:
+            return Assessment.objects.none()
+
+        # Ensure course belongs to user's organization
+        course = get_object_or_404(Course, id=course_id, organization=self.request.user.organization)
         
-        queryset = Assessment.objects.filter(organization=self.request.user.organization)
-        logger.info(f"Found {queryset.count()} assessments for user's organization")
-        logger.info("=== End AssessmentViewSet.get_queryset ===")
-        return queryset
+        return Assessment.objects.filter(
+            assessable_type='Course',
+            assessable_id=course.id,
+            organization=self.request.user.organization
+        )
 
     def perform_create(self, serializer):
-        try:
-            # Get the course associated with this assessment
-            course_id = serializer.validated_data.get('assessable_id')
-            if serializer.validated_data.get('assessable_type') == 'Course':
-                try:
-                    course = Course.objects.get(id=course_id)
-                    # Set the organization from the course
-                    serializer.save(organization=course.organization)
-                except Course.DoesNotExist:
-                    raise ValidationError("Associated course not found")
-            else:
-                raise ValidationError("Only course assessments are supported")
-        except Exception as e:
-            if isinstance(e, APIError):
-                raise e
-            raise ServerError("Failed to create assessment")
+        course_id = self.kwargs.get('course_id')
+        course = get_object_or_404(Course, id=course_id, organization=self.request.user.organization)
+        
+        serializer.save(
+            organization=self.request.user.organization,
+            assessable_type='Course',
+            assessable_id=course.id
+        )
 
-    def has_object_permission(self, request, view, obj):
-        # Now we can directly check the organization field
-        return obj.organization == request.user.organization
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        instance.delete()
 
     @action(detail=True, methods=['get'])
-    def submissions(self, request, pk=None):
+    def submissions(self, request, pk=None, course_id=None):
         """Get all submissions for an assessment"""
         try:
             assessment = self.get_object()

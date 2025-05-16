@@ -21,6 +21,7 @@ interface AssessmentSubmissionProps {
       submission_instructions: string;
     };
   };
+  courseId: string;
   onSubmissionComplete?: () => void;
   courseStatus?: 'ENROLLED' | 'COMPLETED' | 'DROPPED';
 }
@@ -32,7 +33,7 @@ interface Submission {
   submitted_at: string;
 }
 
-export function AssessmentSubmission({ assessment, onSubmissionComplete, courseStatus }: AssessmentSubmissionProps) {
+export function AssessmentSubmission({ assessment, courseId, onSubmissionComplete, courseStatus }: AssessmentSubmissionProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSubmissions, setCurrentSubmissions] = useState<Submission[]>([]);
@@ -41,11 +42,11 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
 
   useEffect(() => {
     fetchCurrentSubmissions();
-  }, [assessment.id]);
+  }, [courseId, assessment.id]);
 
   const fetchCurrentSubmissions = async () => {
     try {
-      const response = await apiService.assessments.getSubmission(assessment.id);
+      const response = await apiService.assessments.getSubmission(courseId, assessment.id);
       // Ensure response is an array before setting it
       const submissions = Array.isArray(response) ? response : [];
       console.log('Fetched submissions:', submissions); // Debug log
@@ -122,7 +123,7 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
       for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
-        await apiService.assessments.submit(assessment.id, formData);
+        await apiService.assessments.submit(courseId, assessment.id, formData);
       }
       
       toast.success('Files submitted successfully');
@@ -139,7 +140,7 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
 
   const handleDelete = async (submissionId: string) => {
     try {
-      await apiService.assessments.deleteSubmission(assessment.id, submissionId);
+      await apiService.assessments.deleteSubmission(courseId, assessment.id, submissionId);
       toast.success('File deleted successfully');
       setCurrentSubmissions(prev => prev.filter(sub => sub.id !== submissionId));
       onSubmissionComplete?.();

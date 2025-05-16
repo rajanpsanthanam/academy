@@ -76,9 +76,9 @@ export default function CourseSubmissions() {
           for (const assessment of course.assessments) {
             try {
               // Check if this is a file submission assessment
-              const assessmentDetails = await apiService.assessments.get(assessment.id);
+              const assessmentDetails = await apiService.assessments.get(course.id, assessment.id);
               if (assessmentDetails.assessment_type === 'FILE_SUBMISSION') {
-                const submissionsResponse = await apiService.assessments.getSubmission(assessment.id);
+                const submissionsResponse = await apiService.assessments.getSubmission(course.id, assessment.id);
                 // Ensure submissionsResponse is an array before spreading
                 const submissions = Array.isArray(submissionsResponse) ? submissionsResponse : [];
                 courseSubmissions.push(...submissions);

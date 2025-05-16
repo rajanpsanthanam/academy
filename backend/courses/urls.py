@@ -8,11 +8,11 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r'courses', CourseViewSet, basename='course')
-router.register(r'assessments', AssessmentViewSet, basename='assessment')
 
 # Nested routes for modules
 course_router = DefaultRouter()
 course_router.register(r'modules', ModuleViewSet, basename='course-module')
+course_router.register(r'assessments', AssessmentViewSet, basename='course-assessment')
 
 # Nested routes for lessons under modules
 module_router = DefaultRouter()
