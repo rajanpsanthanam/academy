@@ -77,7 +77,7 @@ export function AssessmentSubmission({ assessment, courseId, onSubmissionComplet
 
       return true;
     }
-    return false;
+    return true; // Return true if not a FILE_SUBMISSION type or if file_submission config is missing
   };
 
   const handleFiles = useCallback((selectedFiles: File[]) => {
@@ -120,10 +120,15 @@ export function AssessmentSubmission({ assessment, courseId, onSubmissionComplet
 
     setIsSubmitting(true);
     try {
+      console.log('Starting file submission process...');
       for (const file of files) {
+        console.log('Preparing to submit file:', file.name);
         const formData = new FormData();
         formData.append('file', file);
+        console.log('FormData created with file:', file.name);
+        console.log('Submitting to endpoint:', `/courses/${courseId}/assessments/${assessment.id}/submit/`);
         await apiService.assessments.submit(courseId, assessment.id, formData);
+        console.log('File submitted successfully:', file.name);
       }
       
       toast.success('Files submitted successfully');
@@ -132,6 +137,11 @@ export function AssessmentSubmission({ assessment, courseId, onSubmissionComplet
       onSubmissionComplete?.();
     } catch (error: any) {
       console.error('Error submitting files:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error(error.response?.data?.detail || 'Failed to submit files. Please try again.');
     } finally {
       setIsSubmitting(false);

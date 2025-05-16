@@ -22,7 +22,7 @@ interface AssessmentSheetProps {
     assessment_type: string;
     assessable_type: string;
     assessable_id: string;
-    file_submission?: {
+    file_submission_config?: {
       allowed_file_types: string[];
       max_file_size_mb: number;
       submission_instructions: string;
@@ -32,7 +32,7 @@ interface AssessmentSheetProps {
     title: string;
     description: string;
     assessment_type: string;
-    file_submission?: {
+    file_submission_config?: {
       allowed_file_types: string[];
       max_file_size_mb: number;
       submission_instructions: string;
@@ -45,14 +45,19 @@ export function AssessmentSheet({ isOpen, onOpenChange, onSave, initialData, cou
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [assessmentType, setAssessmentType] = useState(initialData?.assessment_type || 'FILE_SUBMISSION');
-  const [allowedFileTypes, setAllowedFileTypes] = useState(initialData?.file_submission?.allowed_file_types?.join(', ') || '');
-  const [maxFileSize, setMaxFileSize] = useState(initialData?.file_submission?.max_file_size_mb?.toString() || '10');
-  const [submissionInstructions, setSubmissionInstructions] = useState(initialData?.file_submission?.submission_instructions || '');
+  const [allowedFileTypes, setAllowedFileTypes] = useState(initialData?.file_submission_config?.allowed_file_types?.join(', ') || '');
+  const [maxFileSize, setMaxFileSize] = useState(initialData?.file_submission_config?.max_file_size_mb?.toString() || '10');
+  const [submissionInstructions, setSubmissionInstructions] = useState(initialData?.file_submission_config?.submission_instructions || '');
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
     if (!title.trim()) {
       toast.error('Assessment title is required');
+      return;
+    }
+
+    if (assessmentType === 'FILE_SUBMISSION' && !allowedFileTypes.trim()) {
+      toast.error('Allowed file types are required');
       return;
     }
 
@@ -65,18 +70,20 @@ export function AssessmentSheet({ isOpen, onOpenChange, onSave, initialData, cou
         assessable_type: 'Course',
         assessable_id: courseId,
         ...(assessmentType === 'FILE_SUBMISSION' && {
-          file_submission: {
-            allowed_file_types: allowedFileTypes.split(',').map(type => type.trim()),
-            max_file_size_mb: parseInt(maxFileSize),
+          file_submission_config: {
+            allowed_file_types: allowedFileTypes.split(',').map(type => type.trim().toLowerCase()).filter(Boolean),
+            max_file_size_mb: parseInt(maxFileSize) || 10,
             submission_instructions: submissionInstructions,
           },
         }),
       };
 
+      console.log('Saving assessment with data:', assessmentData);
       await onSave(assessmentData);
       onOpenChange(false);
       toast.success('Assessment saved successfully');
     } catch (error) {
+      console.error('Error saving assessment:', error);
       toast.error('Failed to save assessment');
     } finally {
       setIsSaving(false);

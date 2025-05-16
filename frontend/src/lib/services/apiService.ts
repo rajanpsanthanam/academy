@@ -429,11 +429,20 @@ class ApiService {
 
   assessments = {
     submit: async (courseId: string, assessmentId: string, formData: FormData) => {
+      console.log('API Service - Submitting file:', {
+        courseId,
+        assessmentId,
+        formDataEntries: Array.from(formData.entries()).map(([key, value]) => ({
+          key,
+          value: value instanceof File ? value.name : value
+        }))
+      });
       const response = await api.post(`/courses/${courseId}/assessments/${assessmentId}/submit/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+      console.log('API Service - Submit response:', response);
       return response.data;
     },
     get: async (courseId: string, assessmentId: string) => {

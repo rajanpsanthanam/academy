@@ -1078,14 +1078,56 @@ class AssessmentViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer):
-        course_id = self.kwargs.get('course_id')
-        course = get_object_or_404(Course, id=course_id, organization=self.request.user.organization)
-        
-        serializer.save(
-            organization=self.request.user.organization,
-            assessable_type='Course',
-            assessable_id=course.id
-        )
+        logger.info("=== Starting AssessmentViewSet.perform_create ===")
+        try:
+            course_id = self.kwargs.get('course_id')
+            logger.info(f"Course ID: {course_id}")
+            
+            course = get_object_or_404(Course, id=course_id, organization=self.request.user.organization)
+            logger.info(f"Found course: {course.id} - {course.title}")
+            
+            # Log the validated data
+            logger.info(f"Validated data: {serializer.validated_data}")
+            
+            # Get file submission config before saving
+            file_submission_config = serializer.validated_data.pop('file_submission_config', None)
+            
+            # Create the assessment
+            assessment = serializer.save(
+                organization=self.request.user.organization,
+                assessable_type='Course',
+                assessable_id=course.id
+            )
+            logger.info(f"Created assessment: {assessment.id} - {assessment.title}")
+            
+            # If this is a file submission assessment, create the file submission configuration
+            if assessment.assessment_type == 'FILE_SUBMISSION':
+                logger.info("Processing file submission configuration")
+                logger.info(f"File submission config: {file_submission_config}")
+                
+                if not file_submission_config:
+                    logger.error("File submission configuration is missing")
+                    raise ValidationError("File submission configuration is required for FILE_SUBMISSION type")
+                
+                # Create the file submission configuration
+                try:
+                    file_submission = FileSubmissionAssessment.objects.create(
+                        assessment=assessment,
+                        allowed_file_types=file_submission_config['allowed_file_types'],
+                        max_file_size_mb=file_submission_config['max_file_size_mb'],
+                        submission_instructions=file_submission_config.get('submission_instructions', '')
+                    )
+                    logger.info(f"Created file submission config: {file_submission.id}")
+                except Exception as e:
+                    logger.error(f"Error creating file submission config: {str(e)}")
+                    raise
+            
+            logger.info("=== End AssessmentViewSet.perform_create ===")
+        except Exception as e:
+            logger.error(f"Error in perform_create: {str(e)}")
+            if isinstance(e, APIError):
+                raise e
+            raise ServerError(f"Failed to create assessment: {str(e)}")
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -1131,10 +1173,11 @@ class AssessmentViewSet(viewsets.ModelViewSet):
             raise ServerError("Failed to fetch submissions")
 
     @action(detail=True, methods=['post'])
-    def submit(self, request, pk=None):
+    def submit(self, request, pk=None, course_id=None):
         logger.info("=== Starting AssessmentViewSet.submit ===")
         logger.info(f"User: {request.user.email}")
         logger.info(f"Assessment ID: {pk}")
+        logger.info(f"Course ID: {course_id}")
         
         try:
             assessment = self.get_object()
