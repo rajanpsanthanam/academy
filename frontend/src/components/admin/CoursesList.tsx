@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ChevronDown, ChevronRight, Save, X, Pencil, Eye, EyeOff, FileText, Eye as EyeIcon, Undo2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Save, X, Pencil, Eye, EyeOff, FileText, Eye as EyeIcon, Undo2, BookOpen, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -32,6 +32,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 import { useToast } from '@/components/ui/use-toast';
@@ -373,227 +379,237 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
   };
 
   return (
-    <Card className={cn(
-      "mb-4",
-      course.deleted_at && "opacity-60 border-dashed"
-    )}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-            <div>
-              <CardTitle className={cn(
+    <Accordion type="single" collapsible className="w-full mb-4">
+      <AccordionItem value={course.id} className={cn(
+        "border rounded-lg",
+        course.deleted_at && "opacity-60 border-dashed"
+      )}>
+        <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50">
+          <div className="flex items-center justify-between w-full pr-4">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <span className={cn(
+                "text-base font-medium",
                 course.deleted_at && "line-through"
-              )}>{course.title}</CardTitle>
+              )}>{course.title}</span>
               {course.deleted_at && (
-                <Badge variant="destructive" className="mt-1">
+                <Badge variant="destructive" className="ml-2">
                   Deleted
                 </Badge>
               )}
             </div>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Badge variant={course.status === 'PUBLISHED' ? 'default' : 'secondary'}>
-              {course.status}
-            </Badge>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleToggleStatus()}
-            >
-              {course.status === 'PUBLISHED' ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-            </Button>
-            <Sheet open={isEditOpen} onOpenChange={setIsEditOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <EditForm
-                title={course.title}
-                description={course.description}
-                onSave={handleSaveCourse}
-                onCancel={() => setIsEditOpen(false)}
-                isOpen={isEditOpen}
-                onOpenChange={setIsEditOpen}
-                type="course"
-              />
-            </Sheet>
-            {course.deleted_at ? (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <Undo2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Restore Course</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to restore this course? This will make it available again.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRestoreCourse}>Restore</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <X className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm Deletion</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {(course.active_enrollments_count ?? 0) > 0 ? (
-                        <>
-                          <p className="text-yellow-600 mb-2">
-                            Warning: This course has {course.active_enrollments_count ?? 0} active enrollment(s).
-                          </p>
-                          <p>
-                            Deleting this course will prevent new enrollments but existing enrolled users will retain access.
-                            Are you sure you want to proceed?
-                          </p>
-                        </>
-                      ) : (
-                        'Are you sure you want to delete this course?'
-                      )}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteCourse}>Delete</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      {isExpanded && (
-        <CardContent className="pt-0">
-          <div className="space-y-4">
-            <div className="flex justify-end">
-              <AddContentButton
-                type="module"
-                onAdd={handleCreateModule}
-                className="mr-2"
-              />
+            <div className="flex items-center gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditOpen(true);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Edit course</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateModule('', '');
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Add module</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {course.deleted_at ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                      <Undo2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Restore Course</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to restore this course? This will also restore all its modules and lessons.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleRestoreCourse()}>Restore</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Course</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this course? This will also delete all its modules and lessons.
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleDeleteCourse()}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
-            {(course.modules || [])?.filter(module => showDeleted || !module.deleted_at)
-              .map((module) => (
-                <Card key={module.id} className={cn(
-                  "ml-4",
-                  module.deleted_at && "opacity-60 border-dashed"
-                )}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className={cn(
-                          module.deleted_at && "line-through"
-                        )}>{module.title}</CardTitle>
-                        {module.deleted_at && (
-                          <Badge variant="destructive" className="mt-1">
-                            Deleted
-                          </Badge>
-                        )}
+          </div>
+        </AccordionTrigger>
+        <AccordionContent>
+          <div className="space-y-4 p-4">
+            <Accordion type="multiple" className="w-full space-y-2">
+              {(course.modules || [])?.filter(module => showDeleted || !module.deleted_at)
+                .map((module) => (
+                  <AccordionItem key={module.id} value={module.id} className={cn(
+                    "border rounded-lg",
+                    module.deleted_at && "opacity-60 border-dashed"
+                  )}>
+                    <AccordionTrigger className="hover:no-underline px-4 py-3 bg-muted/50">
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <div className="flex items-center gap-2">
+                          <BookOpen className="h-4 w-4 text-muted-foreground" />
+                          <span className={cn(
+                            "text-base font-medium",
+                            module.deleted_at && "line-through"
+                          )}>{module.title}</span>
+                          {module.deleted_at && (
+                            <Badge variant="destructive" className="ml-2">
+                              Deleted
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddLesson('', '', '', module.id);
+                                  }}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Add lesson</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingModuleId(module.id);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Edit module</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          {module.deleted_at ? (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                  <Undo2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Restore Module</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to restore this module? This will also restore all its lessons.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleRestoreModule(module.id)}>Restore</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Module</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete this module? This will also delete all its lessons.
+                                    This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteModule(module.id)}>Delete</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <AddContentButton
-                          type="lesson"
-                          onAdd={handleAddLesson}
-                          moduleId={module.id}
-                          className="mr-2"
-                        />
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setEditingModuleId(module.id)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Edit module</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        {module.deleted_at ? (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <Undo2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Restore Module</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to restore this module? This will also restore all its lessons.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleRestoreModule(module.id)}>Restore</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        ) : (
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete Module</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this module? This will also delete all its lessons.
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteModule(module.id)}>Delete</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {(module.lessons || [])?.filter(lesson => showDeleted || !lesson.deleted_at)
-                      .map((lesson) => (
-                        <Card key={lesson.id} className="ml-4 mb-2">
-                          <CardHeader>
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <CardTitle className={cn(
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2 p-2">
+                        {(module.lessons || [])?.filter(lesson => showDeleted || !lesson.deleted_at)
+                          .map((lesson) => (
+                            <div key={lesson.id} className={cn(
+                              "flex items-center justify-between p-3 rounded-lg border",
+                              lesson.deleted_at && "opacity-60 border-dashed"
+                            )}>
+                              <div className="flex items-center gap-2">
+                                <BookOpen className="h-4 w-4 text-muted-foreground" />
+                                <span className={cn(
+                                  "text-sm",
                                   lesson.deleted_at && "line-through"
-                                )}>{lesson.title}</CardTitle>
+                                )}>{lesson.title}</span>
                                 {lesson.deleted_at && (
-                                  <Badge variant="destructive" className="mt-1">
+                                  <Badge variant="destructive" className="ml-2">
                                     Deleted
                                   </Badge>
                                 )}
                               </div>
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center gap-2">
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -653,15 +669,15 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
                                 )}
                               </div>
                             </div>
-                          </CardHeader>
-                        </Card>
-                      ))}
-                  </CardContent>
-                </Card>
-              ))}
+                          ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+            </Accordion>
           </div>
-        </CardContent>
-      )}
+        </AccordionContent>
+      </AccordionItem>
 
       <EditForm
         title={course.title}
@@ -701,36 +717,7 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
           />
         ))
       )}
-
-      <AlertDialog open={isStatusChangeDialogOpen} onOpenChange={setIsStatusChangeDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
-            <AlertDialogDescription>
-              {newStatus === 'DRAFT' && (course.active_enrollments_count ?? 0) > 0 ? (
-                <>
-                  <p className="text-yellow-600 mb-2">
-                    Warning: This course has {course.active_enrollments_count ?? 0} active enrollment(s).
-                  </p>
-                  <p>
-                    Switching to draft mode will prevent new enrollments but existing enrolled users will retain access.
-                    Are you sure you want to proceed?
-                  </p>
-                </>
-              ) : (
-                `Are you sure you want to ${newStatus?.toLowerCase()} this course?`
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmStatusChange}>
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </Card>
+    </Accordion>
   );
 }
 
