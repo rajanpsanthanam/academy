@@ -442,7 +442,12 @@ class ApiService {
         submission_instructions: string;
       };
     }) => {
-      const response = await api.post('/assessments/', data);
+      const { file_submission, ...rest } = data;
+      const requestData = {
+        ...rest,
+        file_submission_data: file_submission
+      };
+      const response = await api.post('/assessments/', requestData);
       return response.data;
     },
   };

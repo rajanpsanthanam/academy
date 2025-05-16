@@ -1081,7 +1081,17 @@ class AssessmentViewSet(viewsets.ModelViewSet):
                 try:
                     course = Course.objects.get(id=course_id)
                     # Set the organization from the course
-                    serializer.save(organization=course.organization)
+                    assessment = serializer.save(organization=course.organization)
+                    
+                    # Create FileSubmissionAssessment if assessment_type is FILE_SUBMISSION
+                    if assessment.assessment_type == 'FILE_SUBMISSION':
+                        file_submission_data = serializer.validated_data.get('file_submission', {})
+                        FileSubmissionAssessment.objects.create(
+                            assessment=assessment,
+                            allowed_file_types=file_submission_data.get('allowed_file_types', ['pdf', 'doc', 'docx']),
+                            max_file_size_mb=file_submission_data.get('max_file_size_mb', 10),
+                            submission_instructions=file_submission_data.get('submission_instructions', '')
+                        )
                 except Course.DoesNotExist:
                     raise ValidationError("Associated course not found")
             else:
