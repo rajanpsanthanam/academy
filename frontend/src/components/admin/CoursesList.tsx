@@ -56,6 +56,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AssessmentForm } from './AssessmentForm';
+import { AssessmentDialog } from './AssessmentDialog';
 
 interface EditFormProps {
   title: string;
@@ -211,8 +212,12 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
   const [newLessonDescription, setNewLessonDescription] = useState('');
   const [newLessonContent, setNewLessonContent] = useState('');
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isAssessmentSheetOpen, setIsAssessmentSheetOpen] = useState(false);
-  const [editingAssessment, setEditingAssessment] = useState<any>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [allowedFileTypes, setAllowedFileTypes] = useState(['pdf', 'doc', 'docx']);
+  const [maxFileSize, setMaxFileSize] = useState(10);
+  const [submissionInstructions, setSubmissionInstructions] = useState('');
 
   const handleSaveCourse = async (title: string, description: string) => {
     try {
@@ -358,27 +363,42 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
     }
   };
 
-  const handleSaveAssessment = async (assessmentData: any) => {
-    try {
-      if (editingAssessment) {
-        await apiService.courses.assessments.update(course.id, editingAssessment.id, assessmentData);
-      } else {
-        await apiService.courses.assessments.create(course.id, assessmentData);
-      }
-      await onUpdate();
-    } catch (error) {
-      console.error('Failed to save assessment:', error);
-      throw error;
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title) return;
 
-  const handleDeleteAssessment = async (assessmentId: string) => {
     try {
-      await apiService.courses.assessments.delete(course.id, assessmentId);
-      await onUpdate();
-      toast.success('Assessment deleted successfully');
+      const newAssessment = await apiService.assessments.create({
+        assessable_type: 'Course',
+        assessable_id: course.id,
+        title,
+        description,
+        assessment_type: 'FILE_SUBMISSION',
+        file_submission: {
+          allowed_file_types: allowedFileTypes,
+          max_file_size_mb: maxFileSize,
+          submission_instructions: submissionInstructions
+        }
+      });
+
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setAllowedFileTypes(['pdf', 'doc', 'docx']);
+      setMaxFileSize(10);
+      setSubmissionInstructions('');
+      setIsDialogOpen(false);
+
+      // Refresh the course data
+      const updatedCourse = {
+        ...course,
+        assessments: [...(course.assessments || []), newAssessment]
+      };
+      onUpdate();
+      toast.success('Assessment created successfully');
     } catch (error) {
-      toast.error('Failed to delete assessment');
+      console.error('Error creating assessment:', error);
+      toast.error('Failed to create assessment');
     }
   };
 
@@ -488,156 +508,36 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
               <p className="text-sm">{course.description}</p>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">Assessments</h3>
-                {!course.deleted_at && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Assessment
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Add New Assessment</DialogTitle>
-                        <DialogDescription>
-                          Create a new assessment for this course.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <form onSubmit={async (e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        const title = formData.get('title') as string;
-                        const description = formData.get('description') as string;
-                        const allowedFileTypes = (formData.get('fileTypes') as string).split(',').map(type => type.trim());
-                        const maxFileSize = Number(formData.get('maxFileSize'));
-                        const submissionInstructions = formData.get('instructions') as string;
-
-                        if (!title.trim()) {
-                          toast.error('Assessment title is required');
-                          return;
-                        }
-
-                        try {
-                          await apiService.assessments.create({
-                            assessable_type: 'Course',
-                            assessable_id: course.id,
-                            title,
-                            description,
-                            assessment_type: 'FILE_SUBMISSION',
-                            file_submission: {
-                              allowed_file_types: allowedFileTypes,
-                              max_file_size_mb: maxFileSize,
-                              submission_instructions: submissionInstructions,
-                            },
-                          });
-                          
-                          await onUpdate();
-                          toast.success('Assessment created successfully');
-                          
-                          const dialog = document.querySelector('[role="dialog"]');
-                          if (dialog) {
-                            (dialog as HTMLDialogElement).close();
-                          }
-                        } catch (error) {
-                          toast.error('Failed to create assessment');
-                        }
-                      }}>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid gap-2">
-                            <Label htmlFor="title">Title</Label>
-                            <Input
-                              id="title"
-                              name="title"
-                              placeholder="Enter assessment title"
-                              className="w-full"
-                              required
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Textarea
-                              id="description"
-                              name="description"
-                              placeholder="Enter assessment description"
-                              className="w-full"
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="fileTypes">Allowed File Types</Label>
-                            <Input
-                              id="fileTypes"
-                              name="fileTypes"
-                              placeholder="pdf, doc, docx"
-                              defaultValue="pdf, doc, docx"
-                              className="w-full"
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="maxFileSize">Maximum File Size (MB)</Label>
-                            <Input
-                              id="maxFileSize"
-                              name="maxFileSize"
-                              type="number"
-                              defaultValue={10}
-                              min={1}
-                              max={100}
-                              className="w-full"
-                            />
-                          </div>
-                          <div className="grid gap-2">
-                            <Label htmlFor="instructions">Submission Instructions</Label>
-                            <Textarea
-                              id="instructions"
-                              name="instructions"
-                              placeholder="Enter submission instructions"
-                              className="w-full"
-                            />
-                          </div>
-                        </div>
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            type="button"
-                            variant="outline" 
-                            onClick={() => {
-                              const dialog = document.querySelector('[role="dialog"]');
-                              if (dialog) {
-                                (dialog as HTMLDialogElement).close();
-                              }
-                            }}
-                          >
-                            Cancel
-                          </Button>
-                          <Button type="submit">
-                            Create Assessment
-                          </Button>
-                        </div>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
+            <div>
+              <h3 className="font-semibold">Assessments</h3>
               {course.assessments && course.assessments.length > 0 ? (
                 <div className="space-y-2">
                   {course.assessments.map((assessment) => (
-                    <div key={assessment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{assessment.title}</p>
-                        {assessment.description && (
-                          <p className="text-sm text-muted-foreground">{assessment.description}</p>
-                        )}
-                      </div>
-                      <Badge variant="outline">
-                        {assessment.assessment_type}
-                      </Badge>
+                    <div key={assessment.id} className="p-2 border rounded">
+                      <h4 className="font-medium">{assessment.title}</h4>
+                      <p className="text-sm text-gray-600">{assessment.description}</p>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">No assessments added yet.</p>
+                <p className="text-sm text-gray-600">No assessments yet</p>
               )}
+              {!course.deleted_at && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => setIsDialogOpen(true)}
+                >
+                  Add Assessment
+                </Button>
+              )}
+              <AssessmentDialog
+                courseId={course.id}
+                isOpen={isDialogOpen}
+                onClose={() => setIsDialogOpen(false)}
+                onSuccess={onUpdate}
+              />
             </div>
 
             <Accordion type="multiple" className="w-full space-y-2">
@@ -888,6 +788,13 @@ interface ApiError extends Error {
 
 export function CoursesList() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [allowedFileTypes, setAllowedFileTypes] = useState(['pdf', 'doc', 'docx']);
+  const [maxFileSize, setMaxFileSize] = useState(10);
+  const [submissionInstructions, setSubmissionInstructions] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDeleted, setShowDeleted] = useState(false);
@@ -943,6 +850,46 @@ export function CoursesList() {
   const handleOrdering = (field: string) => {
     setOrdering(ordering === field ? `-${field}` : field);
     setPage(1); // Reset to first page when changing ordering
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !selectedCourse) return;
+
+    try {
+      const newAssessment = await apiService.assessments.create({
+        assessable_type: 'Course',
+        assessable_id: selectedCourse.id,
+        title,
+        description,
+        assessment_type: 'FILE_SUBMISSION',
+        file_submission: {
+          allowed_file_types: allowedFileTypes,
+          max_file_size_mb: maxFileSize,
+          submission_instructions: submissionInstructions
+        }
+      });
+
+      // Update the course list to include the new assessment
+      const updatedCourse = {
+        ...selectedCourse,
+        assessments: [...(selectedCourse.assessments || []), newAssessment]
+      };
+      setSelectedCourse(updatedCourse);
+
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setAllowedFileTypes(['pdf', 'doc', 'docx']);
+      setMaxFileSize(10);
+      setSubmissionInstructions('');
+      setIsDialogOpen(false);
+
+      toast.success('Assessment created successfully');
+    } catch (error) {
+      console.error('Error creating assessment:', error);
+      toast.error('Failed to create assessment');
+    }
   };
 
   if (loading) {

@@ -268,12 +268,12 @@ class CourseEnrollmentSerializer(serializers.ModelSerializer):
 
 class AssessmentSerializer(serializers.ModelSerializer):
     file_submission = serializers.SerializerMethodField()
-    file_submission_config = serializers.JSONField(write_only=True, required=False)
+    file_submission_data = serializers.DictField(write_only=True, required=False)
 
     class Meta:
         model = Assessment
         fields = ['id', 'assessable_type', 'assessable_id', 'title', 'description', 
-                 'assessment_type', 'file_submission', 'file_submission_config', 'created_at', 'updated_at', 'deleted_at']
+                 'assessment_type', 'file_submission', 'file_submission_data', 'created_at', 'updated_at', 'deleted_at']
         read_only_fields = ['created_at', 'updated_at', 'deleted_at']
 
     def get_file_submission(self, obj):
@@ -286,22 +286,28 @@ class AssessmentSerializer(serializers.ModelSerializer):
         return None
 
     def validate(self, data):
-        if data.get('assessment_type') == 'FILE_SUBMISSION':
-            file_submission_config = data.get('file_submission_config')
-            if not file_submission_config:
-                raise serializers.ValidationError("File submission configuration is required for FILE_SUBMISSION type")
-            
-            required_fields = ['allowed_file_types', 'max_file_size_mb']
-            for field in required_fields:
-                if field not in file_submission_config:
-                    raise serializers.ValidationError(f"Missing required field in file submission config: {field}")
-            
-            if not isinstance(file_submission_config['allowed_file_types'], list):
-                raise serializers.ValidationError("allowed_file_types must be a list")
-            
-            if not isinstance(file_submission_config['max_file_size_mb'], (int, float)):
-                raise serializers.ValidationError("max_file_size_mb must be a number")
+        logger.info("=== Starting AssessmentSerializer.validate ===")
+        logger.info(f"Validating data: {data}")
         
+        if data.get('assessment_type') == 'FILE_SUBMISSION':
+            file_submission_data = data.get('file_submission_data', {})
+            logger.info(f"File submission data: {file_submission_data}")
+            
+            if not file_submission_data:
+                logger.error("File submission data is missing")
+                raise ValidationError("File submission data is required for FILE_SUBMISSION type")
+            
+            allowed_file_types = file_submission_data.get('allowed_file_types', [])
+            if not isinstance(allowed_file_types, list) or not allowed_file_types:
+                logger.error(f"Invalid allowed_file_types: {allowed_file_types}")
+                raise ValidationError("allowed_file_types must be a non-empty list")
+            
+            max_file_size = file_submission_data.get('max_file_size_mb')
+            if not isinstance(max_file_size, (int, float)) or max_file_size <= 0:
+                logger.error(f"Invalid max_file_size_mb: {max_file_size}")
+                raise ValidationError("max_file_size_mb must be a positive number")
+        
+        logger.info("=== End AssessmentSerializer.validate ===")
         return data
 
 class FileSubmissionAssessmentSerializer(serializers.ModelSerializer):
