@@ -49,32 +49,22 @@ export function AddContentButton({ type, onAdd, className, moduleId }: AddConten
   };
 
   const getIcon = () => {
-    switch (type) {
-      case 'course':
-        return <Book className="h-4 w-4 mr-2" />;
-      case 'module':
-        return <BookOpen className="h-4 w-4 mr-2" />;
-      case 'lesson':
-        return <FileText className="h-4 w-4 mr-2" />;
-    }
+    return <Plus className="h-4 w-4" />;
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          size="icon"
           className={cn(
-            "group relative overflow-hidden transition-all duration-300",
-            "hover:bg-primary/10 hover:text-primary",
-            "focus-visible:ring-2 focus-visible:ring-primary",
+            "h-9 w-9",
             className
           )}
         >
           {getIcon()}
-          Add {type.charAt(0).toUpperCase() + type.slice(1)}
-          <span className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          <span className="sr-only">Add {type.charAt(0).toUpperCase() + type.slice(1)}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
