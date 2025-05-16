@@ -907,8 +907,23 @@ class CourseEnrollmentViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'patch', 'head']  # Only allow GET and PATCH operations
 
     def get_queryset(self):
-        # Users can only see their own enrollments
-        return CourseEnrollment.objects.filter(user=self.request.user)
+        queryset = CourseEnrollment.objects.all()
+        
+        # Filter by course if provided
+        course_id = self.request.query_params.get('course')
+        if course_id:
+            queryset = queryset.filter(course_id=course_id)
+            
+        # Filter by user if provided
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+            
+        # If not staff, only show user's own enrollments
+        if not self.request.user.is_staff:
+            queryset = queryset.filter(user=self.request.user)
+            
+        return queryset
 
     def perform_update(self, serializer):
         try:
