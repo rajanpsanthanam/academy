@@ -140,7 +140,7 @@ export default function Dashboard() {
               <div className="flex flex-wrap gap-4">
                 <Button onClick={() => navigate('/portal/courses')} className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
-                  View All Courses
+                  Courses
                 </Button>
               </div>
             </CardContent>

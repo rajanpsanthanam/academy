@@ -4,7 +4,6 @@ import { getMediaUrl } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { Search, Menu } from 'lucide-react';
 import { UserMenu } from './UserMenu';
-import { SearchBar } from './SearchBar';
 import { OrganizationLogo } from './OrganizationLogo';
 
 interface HeaderProps {
@@ -18,6 +17,10 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const logoUrl = state.user?.organization?.logo ? getMediaUrl(state.user.organization.logo) : null;
   const isAdminView = location.pathname.startsWith('/admin');
+
+  const handleSearchClick = () => {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
+  };
 
   return (
     <header className="border-b">
@@ -45,12 +48,35 @@ export function Header({ onMenuClick }: HeaderProps) {
               />
             )}
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-2 h-9 px-3"
+              onClick={handleSearchClick}
+            >
+              <Search className="h-4 w-4" />
+              <span className="text-sm text-muted-foreground">Search...</span>
+              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </Button>
             <UserMenu />
           </div>
         </div>
-        <div className="hidden md:flex items-center gap-6">
-          {!isAdminView && <SearchBar />}
+        <div className="hidden md:flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex items-center gap-2 h-9 px-3"
+            onClick={handleSearchClick}
+          >
+            <Search className="h-4 w-4" />
+            <span className="text-sm text-muted-foreground">Search...</span>
+            <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
           <UserMenu />
         </div>
       </div>
