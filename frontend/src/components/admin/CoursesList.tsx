@@ -47,6 +47,14 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AddContentButton } from './AddContentButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDebounce } from '@/hooks/useDebounce';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface EditFormProps {
   title: string;
@@ -421,16 +429,11 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCreateModule('', '');
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                    <AddContentButton
+                      type="module"
+                      onAdd={handleCreateModule}
+                      className="h-9 w-9 p-0"
+                    />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Add module</p>
@@ -509,16 +512,11 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddLesson('', '', '', module.id);
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
+                                <AddContentButton
+                                  type="lesson"
+                                  onAdd={(title, description, content) => handleAddLesson(title, description, content, module.id)}
+                                  className="h-9 w-9 p-0"
+                                />
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Add lesson</p>
@@ -836,45 +834,19 @@ export function CoursesList() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleOrdering('title')}
-                className={ordering.includes('title') ? 'bg-accent' : ''}
-              >
-                Title {ordering === 'title' ? '↑' : ordering === '-title' ? '↓' : ''}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleOrdering('created_at')}
-                className={ordering.includes('created_at') ? 'bg-accent' : ''}
-              >
-                Created {ordering === 'created_at' ? '↑' : ordering === '-created_at' ? '↓' : ''}
-              </Button>
-            </div>
           </div>
-          <AddContentButton
-            type="course"
-            onAdd={async (title, description) => {
-              try {
-                await apiService.courses.create({
-                  title,
-                  description,
-                  status: 'DRAFT'
-                });
-                await fetchCourses();
-                toast.success('Course created successfully', {
-                  description: 'The course has been created and is now in draft mode.',
-                });
-              } catch (error) {
-                toast.error('Failed to create course', {
-                  description: 'There was an error creating the course. Please try again.',
-                });
+          <Button
+            onClick={() => {
+              const dialog = document.querySelector('[role="dialog"]');
+              if (dialog) {
+                (dialog as HTMLDialogElement).showModal();
               }
             }}
-          />
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Course
+          </Button>
         </div>
         <div className="flex items-center justify-between border-t pt-4">
           <div className="flex items-center gap-2">
@@ -887,6 +859,91 @@ export function CoursesList() {
           </div>
         </div>
       </div>
+
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button className="hidden">Add Course</Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add New Course</DialogTitle>
+            <DialogDescription>
+              Create a new course for your organization. Fill in the details below.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const title = formData.get('title') as string;
+            const description = formData.get('description') as string;
+
+            if (!title.trim()) {
+              toast.error('Course title is required');
+              return;
+            }
+
+            try {
+              await apiService.courses.create({
+                title,
+                description,
+                status: 'DRAFT'
+              });
+              await fetchCourses();
+              toast.success('Course created successfully', {
+                description: 'The course has been created and is now in draft mode.',
+              });
+              const dialog = document.querySelector('[role="dialog"]');
+              if (dialog) {
+                (dialog as HTMLDialogElement).close();
+              }
+            } catch (error) {
+              toast.error('Failed to create course', {
+                description: 'There was an error creating the course. Please try again.',
+              });
+            }
+          }}>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  name="title"
+                  placeholder="Enter course title"
+                  className="w-full"
+                  required
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  placeholder="Enter course description"
+                  className="w-full"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button 
+                type="button"
+                variant="outline" 
+                onClick={() => {
+                  const dialog = document.querySelector('[role="dialog"]');
+                  if (dialog) {
+                    (dialog as HTMLDialogElement).close();
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                Add Course
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-4">
         {Array.isArray(courses) && courses.map((course) => (
           <CourseItem 
