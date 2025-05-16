@@ -268,11 +268,12 @@ class CourseEnrollmentSerializer(serializers.ModelSerializer):
 
 class AssessmentSerializer(serializers.ModelSerializer):
     file_submission = serializers.SerializerMethodField()
+    file_submission_config = serializers.JSONField(write_only=True, required=False)
 
     class Meta:
         model = Assessment
         fields = ['id', 'assessable_type', 'assessable_id', 'title', 'description', 
-                 'assessment_type', 'file_submission', 'created_at', 'updated_at', 'deleted_at']
+                 'assessment_type', 'file_submission', 'file_submission_config', 'created_at', 'updated_at', 'deleted_at']
         read_only_fields = ['created_at', 'updated_at', 'deleted_at']
 
     def get_file_submission(self, obj):
@@ -283,6 +284,25 @@ class AssessmentSerializer(serializers.ModelSerializer):
             except FileSubmissionAssessment.DoesNotExist:
                 return None
         return None
+
+    def validate(self, data):
+        if data.get('assessment_type') == 'FILE_SUBMISSION':
+            file_submission_config = data.get('file_submission_config')
+            if not file_submission_config:
+                raise serializers.ValidationError("File submission configuration is required for FILE_SUBMISSION type")
+            
+            required_fields = ['allowed_file_types', 'max_file_size_mb']
+            for field in required_fields:
+                if field not in file_submission_config:
+                    raise serializers.ValidationError(f"Missing required field in file submission config: {field}")
+            
+            if not isinstance(file_submission_config['allowed_file_types'], list):
+                raise serializers.ValidationError("allowed_file_types must be a list")
+            
+            if not isinstance(file_submission_config['max_file_size_mb'], (int, float)):
+                raise serializers.ValidationError("max_file_size_mb must be a number")
+        
+        return data
 
 class FileSubmissionAssessmentSerializer(serializers.ModelSerializer):
     class Meta:

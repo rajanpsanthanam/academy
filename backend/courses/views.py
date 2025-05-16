@@ -1101,39 +1101,80 @@ class AssessmentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, OrganizationPermission]
 
     def get_queryset(self):
-        logger.info("=== Starting AssessmentViewSet.get_queryset ===")
-        logger.info(f"User: {self.request.user.email}, is_staff: {self.request.user.is_staff}")
-        logger.info(f"User organization: {self.request.user.organization}")
+        course_id = self.kwargs.get('course_id')
+        if not course_id:
+            return Assessment.objects.none()
+
+        # Ensure course belongs to user's organization
+        course = get_object_or_404(Course, id=course_id, organization=self.request.user.organization)
         
-        queryset = Assessment.objects.filter(organization=self.request.user.organization)
-        logger.info(f"Found {queryset.count()} assessments for user's organization")
-        logger.info("=== End AssessmentViewSet.get_queryset ===")
-        return queryset
+        return Assessment.objects.filter(
+            assessable_type='Course',
+            assessable_id=course.id,
+            organization=self.request.user.organization
+        )
 
     def perform_create(self, serializer):
+        logger.info("=== Starting AssessmentViewSet.perform_create ===")
         try:
-            # Get the course associated with this assessment
-            course_id = serializer.validated_data.get('assessable_id')
-            if serializer.validated_data.get('assessable_type') == 'Course':
+            course_id = self.kwargs.get('course_id')
+            logger.info(f"Course ID: {course_id}")
+            
+            course = get_object_or_404(Course, id=course_id, organization=self.request.user.organization)
+            logger.info(f"Found course: {course.id} - {course.title}")
+            
+            # Log the validated data
+            logger.info(f"Validated data: {serializer.validated_data}")
+            
+            # Get file submission config before saving
+            file_submission_config = serializer.validated_data.pop('file_submission_config', None)
+            
+            # Create the assessment
+            assessment = serializer.save(
+                organization=self.request.user.organization,
+                assessable_type='Course',
+                assessable_id=course.id
+            )
+            logger.info(f"Created assessment: {assessment.id} - {assessment.title}")
+            
+            # If this is a file submission assessment, create the file submission configuration
+            if assessment.assessment_type == 'FILE_SUBMISSION':
+                logger.info("Processing file submission configuration")
+                logger.info(f"File submission config: {file_submission_config}")
+                
+                if not file_submission_config:
+                    logger.error("File submission configuration is missing")
+                    raise ValidationError("File submission configuration is required for FILE_SUBMISSION type")
+                
+                # Create the file submission configuration
                 try:
-                    course = Course.objects.get(id=course_id)
-                    # Set the organization from the course
-                    serializer.save(organization=course.organization)
-                except Course.DoesNotExist:
-                    raise ValidationError("Associated course not found")
-            else:
-                raise ValidationError("Only course assessments are supported")
+                    file_submission = FileSubmissionAssessment.objects.create(
+                        assessment=assessment,
+                        allowed_file_types=file_submission_config['allowed_file_types'],
+                        max_file_size_mb=file_submission_config['max_file_size_mb'],
+                        submission_instructions=file_submission_config.get('submission_instructions', '')
+                    )
+                    logger.info(f"Created file submission config: {file_submission.id}")
+                except Exception as e:
+                    logger.error(f"Error creating file submission config: {str(e)}")
+                    raise
+            
+            logger.info("=== End AssessmentViewSet.perform_create ===")
         except Exception as e:
+            logger.error(f"Error in perform_create: {str(e)}")
             if isinstance(e, APIError):
                 raise e
-            raise ServerError("Failed to create assessment")
+            raise ServerError(f"Failed to create assessment: {str(e)}")
 
-    def has_object_permission(self, request, view, obj):
-        # Now we can directly check the organization field
-        return obj.organization == request.user.organization
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        instance.delete()
 
     @action(detail=True, methods=['get'])
-    def submissions(self, request, pk=None):
+    def submissions(self, request, pk=None, course_id=None):
         """Get all submissions for an assessment"""
         try:
             assessment = self.get_object()
@@ -1169,10 +1210,11 @@ class AssessmentViewSet(viewsets.ModelViewSet):
             raise ServerError("Failed to fetch submissions")
 
     @action(detail=True, methods=['post'])
-    def submit(self, request, pk=None):
+    def submit(self, request, pk=None, course_id=None):
         logger.info("=== Starting AssessmentViewSet.submit ===")
         logger.info(f"User: {request.user.email}")
         logger.info(f"Assessment ID: {pk}")
+        logger.info(f"Course ID: {course_id}")
         
         try:
             assessment = self.get_object()

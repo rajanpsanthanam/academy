@@ -21,6 +21,7 @@ interface AssessmentSubmissionProps {
       submission_instructions: string;
     };
   };
+  courseId: string;
   onSubmissionComplete?: () => void;
   courseStatus?: 'ENROLLED' | 'COMPLETED' | 'DROPPED';
 }
@@ -32,7 +33,7 @@ interface Submission {
   submitted_at: string;
 }
 
-export function AssessmentSubmission({ assessment, onSubmissionComplete, courseStatus }: AssessmentSubmissionProps) {
+export function AssessmentSubmission({ assessment, courseId, onSubmissionComplete, courseStatus }: AssessmentSubmissionProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSubmissions, setCurrentSubmissions] = useState<Submission[]>([]);
@@ -41,11 +42,11 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
 
   useEffect(() => {
     fetchCurrentSubmissions();
-  }, [assessment.id]);
+  }, [courseId, assessment.id]);
 
   const fetchCurrentSubmissions = async () => {
     try {
-      const response = await apiService.assessments.getSubmission(assessment.id);
+      const response = await apiService.assessments.getSubmission(courseId, assessment.id);
       // Ensure response is an array before setting it
       const submissions = Array.isArray(response) ? response : [];
       console.log('Fetched submissions:', submissions); // Debug log
@@ -76,7 +77,7 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
 
       return true;
     }
-    return false;
+    return true; // Return true if not a FILE_SUBMISSION type or if file_submission config is missing
   };
 
   const handleFiles = useCallback((selectedFiles: File[]) => {
@@ -119,10 +120,15 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
 
     setIsSubmitting(true);
     try {
+      console.log('Starting file submission process...');
       for (const file of files) {
+        console.log('Preparing to submit file:', file.name);
         const formData = new FormData();
         formData.append('file', file);
-        await apiService.assessments.submit(assessment.id, formData);
+        console.log('FormData created with file:', file.name);
+        console.log('Submitting to endpoint:', `/courses/${courseId}/assessments/${assessment.id}/submit/`);
+        await apiService.assessments.submit(courseId, assessment.id, formData);
+        console.log('File submitted successfully:', file.name);
       }
       
       toast.success('Files submitted successfully');
@@ -131,6 +137,11 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
       onSubmissionComplete?.();
     } catch (error: any) {
       console.error('Error submitting files:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       toast.error(error.response?.data?.detail || 'Failed to submit files. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -139,7 +150,7 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete, courseS
 
   const handleDelete = async (submissionId: string) => {
     try {
-      await apiService.assessments.deleteSubmission(assessment.id, submissionId);
+      await apiService.assessments.deleteSubmission(courseId, assessment.id, submissionId);
       toast.success('File deleted successfully');
       setCurrentSubmissions(prev => prev.filter(sub => sub.id !== submissionId));
       onSubmissionComplete?.();

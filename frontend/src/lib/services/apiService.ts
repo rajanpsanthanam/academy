@@ -363,6 +363,24 @@ class ApiService {
         return response.data;
       },
     },
+    assessments: {
+      create: async (courseId: string, data: any) => {
+        const response = await api.post(`/courses/${courseId}/assessments/`, data);
+        return response.data;
+      },
+      update: async (courseId: string, assessmentId: string, data: any) => {
+        const response = await api.put(`/courses/${courseId}/assessments/${assessmentId}/`, data);
+        return response.data;
+      },
+      delete: async (courseId: string, assessmentId: string) => {
+        const response = await api.delete(`/courses/${courseId}/assessments/${assessmentId}/`);
+        return response.data;
+      },
+      list: async (courseId: string) => {
+        const response = await api.get(`/courses/${courseId}/assessments/`);
+        return response.data;
+      },
+    },
   };
 
   // Enrollment endpoints
@@ -410,24 +428,33 @@ class ApiService {
   };
 
   assessments = {
-    submit: async (assessmentId: string, formData: FormData) => {
-      const response = await api.post(`/assessments/${assessmentId}/submit/`, formData, {
+    submit: async (courseId: string, assessmentId: string, formData: FormData) => {
+      console.log('API Service - Submitting file:', {
+        courseId,
+        assessmentId,
+        formDataEntries: Array.from(formData.entries()).map(([key, value]) => ({
+          key,
+          value: value instanceof File ? value.name : value
+        }))
+      });
+      const response = await api.post(`/courses/${courseId}/assessments/${assessmentId}/submit/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
+      console.log('API Service - Submit response:', response);
       return response.data;
     },
-    get: async (assessmentId: string) => {
-      const response = await api.get(`/assessments/${assessmentId}/`);
+    get: async (courseId: string, assessmentId: string) => {
+      const response = await api.get(`/courses/${courseId}/assessments/${assessmentId}/`);
       return response.data;
     },
-    getSubmission: async (assessmentId: string) => {
-      const response = await api.get(`/assessments/${assessmentId}/submissions/`);
+    getSubmission: async (courseId: string, assessmentId: string) => {
+      const response = await api.get(`/courses/${courseId}/assessments/${assessmentId}/submissions/`);
       return response.data;
     },
-    deleteSubmission: async (assessmentId: string, submissionId: string) => {
-      const response = await api.delete(`/assessments/${assessmentId}/delete_submission/?submission_id=${submissionId}`);
+    deleteSubmission: async (courseId: string, assessmentId: string, submissionId: string) => {
+      const response = await api.delete(`/courses/${courseId}/assessments/${assessmentId}/delete_submission/?submission_id=${submissionId}`);
       return response.data;
     },
   };

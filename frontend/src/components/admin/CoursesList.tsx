@@ -55,6 +55,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { AssessmentSheet } from './AssessmentSheet';
 
 interface EditFormProps {
   title: string;
@@ -212,6 +213,8 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
   const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = useState(false);
   const [newStatus, setNewStatus] = useState<'DRAFT' | 'PUBLISHED' | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAssessmentSheetOpen, setIsAssessmentSheetOpen] = useState(false);
+  const [editingAssessment, setEditingAssessment] = useState<any>(null);
 
   const handleSaveCourse = async (title: string, description: string) => {
     try {
@@ -386,6 +389,30 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
     }
   };
 
+  const handleSaveAssessment = async (assessmentData: any) => {
+    try {
+      if (editingAssessment) {
+        await apiService.courses.assessments.update(course.id, editingAssessment.id, assessmentData);
+      } else {
+        await apiService.courses.assessments.create(course.id, assessmentData);
+      }
+      await onUpdate();
+    } catch (error) {
+      console.error('Failed to save assessment:', error);
+      throw error;
+    }
+  };
+
+  const handleDeleteAssessment = async (assessmentId: string) => {
+    try {
+      await apiService.courses.assessments.delete(course.id, assessmentId);
+      await onUpdate();
+      toast.success('Assessment deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete assessment');
+    }
+  };
+
   return (
     <Accordion type="single" collapsible className="w-full mb-4">
       <AccordionItem value={course.id} className={cn(
@@ -487,6 +514,73 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
         </AccordionTrigger>
         <AccordionContent>
           <div className="space-y-4 p-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-medium">Assessments</h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditingAssessment(null);
+                    setIsAssessmentSheetOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Assessment
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {course.assessments?.map((assessment) => (
+                  <div
+                    key={assessment.id}
+                    className="flex items-center justify-between p-3 border rounded-lg"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <h4 className="font-medium">{assessment.title}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {assessment.assessment_type}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setEditingAssessment(assessment);
+                          setIsAssessmentSheetOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Assessment</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this assessment? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDeleteAssessment(assessment.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <Accordion type="multiple" className="w-full space-y-2">
               {(course.modules || [])?.filter(module => showDeleted || !module.deleted_at)
                 .map((module) => (
@@ -715,6 +809,14 @@ function CourseItem({ course, onUpdate, showDeleted }: CourseItemProps) {
           />
         ))
       )}
+
+      <AssessmentSheet
+        isOpen={isAssessmentSheetOpen}
+        onOpenChange={setIsAssessmentSheetOpen}
+        onSave={handleSaveAssessment}
+        initialData={editingAssessment}
+        courseId={course.id}
+      />
     </Accordion>
   );
 }
