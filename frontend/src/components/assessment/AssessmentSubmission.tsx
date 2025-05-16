@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { apiService } from '@/lib/services/apiService';
-import { Upload, FileText, Trash2, RefreshCw, X, UploadCloud } from 'lucide-react';
+import { Upload, FileText, Trash2, RefreshCw, X, UploadCloud, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface AssessmentSubmissionProps {
   assessment: {
@@ -21,6 +22,7 @@ interface AssessmentSubmissionProps {
     };
   };
   onSubmissionComplete?: () => void;
+  courseStatus?: 'ENROLLED' | 'COMPLETED' | 'DROPPED';
 }
 
 interface Submission {
@@ -30,7 +32,7 @@ interface Submission {
   submitted_at: string;
 }
 
-export function AssessmentSubmission({ assessment, onSubmissionComplete }: AssessmentSubmissionProps) {
+export function AssessmentSubmission({ assessment, onSubmissionComplete, courseStatus }: AssessmentSubmissionProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentSubmissions, setCurrentSubmissions] = useState<Submission[]>([]);
@@ -44,9 +46,13 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
   const fetchCurrentSubmissions = async () => {
     try {
       const response = await apiService.assessments.getSubmission(assessment.id);
-      setCurrentSubmissions(response || []);
+      // Ensure response is an array before setting it
+      const submissions = Array.isArray(response) ? response : [];
+      console.log('Fetched submissions:', submissions); // Debug log
+      setCurrentSubmissions(submissions);
     } catch (error) {
       console.error('Error fetching submissions:', error);
+      setCurrentSubmissions([]);
     } finally {
       setIsLoading(false);
     }
@@ -155,6 +161,52 @@ export function AssessmentSubmission({ assessment, onSubmissionComplete }: Asses
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">This assessment type is not supported yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // If course is completed, only show existing submissions
+  if (courseStatus === 'COMPLETED') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {assessment.title}
+            <Badge variant="success" className="flex items-center gap-1">
+              <CheckCircle className="h-3 w-3" />
+              Course Completed
+            </Badge>
+          </CardTitle>
+          {assessment.description && (
+            <CardDescription>{assessment.description}</CardDescription>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Loading...</div>
+          ) : currentSubmissions.length > 0 ? (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium">Submitted Files</h3>
+              {currentSubmissions.map((submission) => (
+                <div key={submission.id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">{submission.file_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Submitted on {new Date(submission.submitted_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-sm text-muted-foreground">No files were submitted for this assessment.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     );

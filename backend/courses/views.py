@@ -40,6 +40,10 @@ class CourseViewSet(viewsets.ModelViewSet):
         logger.info("=== Starting get_queryset ===")
         logger.info(f"User: {self.request.user.email}, is_staff: {self.request.user.is_staff}")
         
+        # Get the view parameter to determine which tab we're in
+        view = self.request.query_params.get('view')
+        logger.info(f"View parameter: {view}")
+        
         # For admin users, use all_objects to access all courses including deleted ones
         if self.request.user.is_staff:
             queryset = Course.all_objects.filter(organization=self.request.user.organization)
@@ -49,11 +53,32 @@ class CourseViewSet(viewsets.ModelViewSet):
             show_deleted = self.request.query_params.get('show_deleted', 'false').lower() == 'true'
             logger.info(f"show_deleted parameter: {show_deleted}")
             
-            # Handle status filter
-            status = self.request.query_params.get('status', None)
-            if status:
-                queryset = queryset.filter(status=status)
-                logger.info(f"Filtered by status: {status}")
+            # Filter based on view parameter if provided
+            if view:
+                if view == 'pending':
+                    # Show courses that haven't been enrolled in, completed, or dropped
+                    queryset = queryset.exclude(
+                        enrollments__user=self.request.user,
+                        enrollments__status__in=['ENROLLED', 'COMPLETED', 'DROPPED']
+                    )
+                elif view == 'enrolled':
+                    # Show courses that are currently enrolled
+                    queryset = queryset.filter(
+                        enrollments__user=self.request.user,
+                        enrollments__status='ENROLLED'
+                    )
+                elif view == 'completed':
+                    # Show completed courses
+                    queryset = queryset.filter(
+                        enrollments__user=self.request.user,
+                        enrollments__status='COMPLETED'
+                    )
+                elif view == 'dropped':
+                    # Show dropped courses
+                    queryset = queryset.filter(
+                        enrollments__user=self.request.user,
+                        enrollments__status='DROPPED'
+                    )
             
             # Handle search query
             search = self.request.query_params.get('search', None)
@@ -65,11 +90,8 @@ class CourseViewSet(viewsets.ModelViewSet):
                 ).distinct()
                 logger.info(f"Filtered by search: {search}")
             
-            # Handle ordering
-            ordering = self.request.query_params.get('ordering', '-created_at')
-            if ordering:
-                queryset = queryset.order_by(ordering)
-                logger.info(f"Ordering by: {ordering}")
+            # Always sort by most recent first
+            queryset = queryset.order_by('-created_at')
             
             if not show_deleted:
                 queryset = queryset.filter(deleted_at__isnull=True)
@@ -80,6 +102,30 @@ class CourseViewSet(viewsets.ModelViewSet):
                 organization=self.request.user.organization,
                 status='PUBLISHED'
             )
+            
+            # Apply view-based filtering only if view parameter is provided
+            if view:
+                if view == 'pending':
+                    queryset = queryset.exclude(
+                        enrollments__user=self.request.user,
+                        enrollments__status__in=['ENROLLED', 'COMPLETED', 'DROPPED']
+                    )
+                elif view == 'enrolled':
+                    queryset = queryset.filter(
+                        enrollments__user=self.request.user,
+                        enrollments__status='ENROLLED'
+                    )
+                elif view == 'completed':
+                    queryset = queryset.filter(
+                        enrollments__user=self.request.user,
+                        enrollments__status='COMPLETED'
+                    )
+                elif view == 'dropped':
+                    queryset = queryset.filter(
+                        enrollments__user=self.request.user,
+                        enrollments__status='DROPPED'
+                    )
+            
             logger.info(f"Normal user queryset count: {queryset.count()}")
         
         logger.info(f"Final queryset count: {queryset.count()}")
@@ -1062,11 +1108,11 @@ class AssessmentViewSet(viewsets.ModelViewSet):
                     enrollment = CourseEnrollment.objects.filter(
                         user=request.user,
                         course=course,
-                        status='ENROLLED'
+                        status__in=['ENROLLED', 'COMPLETED']  # Allow both enrolled and completed users
                     ).first()
                     
                     if not enrollment:
-                        raise PermissionError("You must be enrolled in the course to view submissions")
+                        raise PermissionError("You must be enrolled in or have completed the course to view submissions")
                 except Course.DoesNotExist:
                     raise NotFoundError("Associated course not found")
 
@@ -1117,6 +1163,11 @@ class AssessmentViewSet(viewsets.ModelViewSet):
             if not enrollment:
                 logger.error(f"User {request.user.email} is not enrolled in course {course.id}")
                 raise PermissionError("You must be enrolled in the course to submit assessments")
+
+            # Check if course is completed
+            if enrollment.status == 'COMPLETED':
+                logger.error(f"User {request.user.email} cannot submit files for completed course {course.id}")
+                raise ValidationError("Cannot submit files for a completed course")
 
             # Validate assessment type
             if assessment.assessment_type != 'FILE_SUBMISSION':

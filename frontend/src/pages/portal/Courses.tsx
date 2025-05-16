@@ -101,30 +101,27 @@ function Courses({ filter }: CoursesProps) {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
+  const getDefaultTab = () => {
+    if (location.pathname.includes('/enrolled')) return 'enrolled';
+    if (location.pathname.includes('/dropped')) return 'dropped';
+    if (location.pathname.includes('/completed')) return 'completed';
+    return 'pending';
+  };
+
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
+
   const statusVariants = {
     ENROLLED: "default",
     COMPLETED: "success",
     DROPPED: "destructive"
   } as const;
 
-  // Calculate course statistics exactly like the minified code
-  const courseStats = React.useMemo(() => {
-    const t = Array.isArray(courses) ? courses : [];
-    return {
-      total: t.length,
-      enrolled: t.filter(o => o?.enrollment?.status === "ENROLLED").length,
-      dropped: t.filter(o => o?.enrollment?.status === "DROPPED").length,
-      completed: t.filter(o => o?.enrollment?.status === "COMPLETED").length
-    };
-  }, [courses]);
-
   const fetchCourses = async () => {
     try {
       setLoading(true);
       const response = await apiService.courses.list({
         page,
-        page_size: pageSize,
-        status: filter
+        page_size: pageSize
       });
       
       if (!response || typeof response !== 'object') {
@@ -157,7 +154,41 @@ function Courses({ filter }: CoursesProps) {
 
   useEffect(() => {
     fetchCourses();
-  }, [page, pageSize, filter]);
+  }, [page, pageSize]);
+
+  const getFilteredCourses = (status?: string) => {
+    if (!Array.isArray(courses)) {
+      return [];
+    }
+    
+    if (!status) {
+      return courses;
+    }
+    
+    return courses.filter(course => {
+      if (status === 'pending') {
+        return !course.enrollment;
+      }
+      return course.enrollment?.status === status.toUpperCase();
+    });
+  };
+
+  // Calculate course statistics
+  const courseStats = React.useMemo(() => {
+    const t = Array.isArray(courses) ? courses : [];
+    return {
+      total: t.length,
+      enrolled: t.filter(o => o?.enrollment?.status === "ENROLLED").length,
+      dropped: t.filter(o => o?.enrollment?.status === "DROPPED").length,
+      completed: t.filter(o => o?.enrollment?.status === "COMPLETED").length,
+      pending: t.filter(o => !o?.enrollment).length
+    };
+  }, [courses]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    setPage(1); // Reset to first page when changing tabs
+  };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -211,28 +242,6 @@ function Courses({ filter }: CoursesProps) {
 
   const handleLessonClick = (courseId: string, moduleId: string, lessonId: string) => {
     navigate(`/portal/courses/${courseId}/modules/${moduleId}/lessons/${lessonId}`);
-  };
-
-  const getDefaultTab = () => {
-    if (location.pathname.includes('/enrolled')) return 'enrolled';
-    if (location.pathname.includes('/dropped')) return 'dropped';
-    if (location.pathname.includes('/completed')) return 'completed';
-    return 'all';
-  };
-
-  const getFilteredCourses = (status?: string) => {
-    if (!Array.isArray(courses)) {
-      return [];
-    }
-    
-    if (!status) {
-      return courses;
-    }
-    
-    return courses.filter(course => {
-      var s;
-      return ((s = course.enrollment) == null ? void 0 : s.status) === status;
-    });
   };
 
   const renderEnrollmentStatus = (course: Course) => {
@@ -400,6 +409,7 @@ function Courses({ filter }: CoursesProps) {
                 <AssessmentSubmission
                   key={assessment.id}
                   assessment={assessment}
+                  courseStatus={course.enrollment?.status}
                   onSubmissionComplete={() => {
                     // Refresh course data after submission
                     fetchCourses();
@@ -464,6 +474,18 @@ function Courses({ filter }: CoursesProps) {
                         </Tooltip>
                       </TooltipProvider>
                     )}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            Created {new Date(course.created_at).toLocaleDateString()}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Created on {new Date(course.created_at).toLocaleString()}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </AccordionTrigger>
                 <div className="ml-4">
@@ -516,24 +538,24 @@ function Courses({ filter }: CoursesProps) {
           </Alert>
         ) : (
           <>
-            <Tabs defaultValue={getDefaultTab()} className="w-full">
+            <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="all">All Courses</TabsTrigger>
-                <TabsTrigger value="enrolled">Enrolled</TabsTrigger>
-                <TabsTrigger value="completed">Completed</TabsTrigger>
-                <TabsTrigger value="dropped">Dropped</TabsTrigger>
+                <TabsTrigger value="pending">All Courses ({courseStats.pending})</TabsTrigger>
+                <TabsTrigger value="enrolled">Enrolled ({courseStats.enrolled})</TabsTrigger>
+                <TabsTrigger value="completed">Completed ({courseStats.completed})</TabsTrigger>
+                <TabsTrigger value="dropped">Dropped ({courseStats.dropped})</TabsTrigger>
               </TabsList>
-              <TabsContent value="all" className="mt-6">
-                {renderCoursesList(courses)}
+              <TabsContent value="pending" className="mt-6">
+                {renderCoursesList(getFilteredCourses('pending'))}
               </TabsContent>
               <TabsContent value="enrolled" className="mt-6">
-                {renderCoursesList(getFilteredCourses('ENROLLED'))}
+                {renderCoursesList(getFilteredCourses('enrolled'))}
               </TabsContent>
               <TabsContent value="completed" className="mt-6">
-                {renderCoursesList(getFilteredCourses('COMPLETED'))}
+                {renderCoursesList(getFilteredCourses('completed'))}
               </TabsContent>
               <TabsContent value="dropped" className="mt-6">
-                {renderCoursesList(getFilteredCourses('DROPPED'))}
+                {renderCoursesList(getFilteredCourses('dropped'))}
               </TabsContent>
             </Tabs>
             <div className="flex items-center justify-between border-t pt-4">

@@ -18,21 +18,26 @@ export interface User {
   is_superuser: boolean;
   is_active: boolean;
   last_login: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: User | null;
+  token: string | null;
   error: string | null;
 }
 
 export type AuthAction =
   | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string } }
-  | { type: 'LOGIN_FAILURE'; payload: string }
+  | { type: 'LOGIN_FAILURE'; payload: { error: string } }
   | { type: 'LOGOUT' }
   | { type: 'LOADING' }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'VERIFY_SUCCESS'; payload: { user: User; token: string } }
+  | { type: 'VERIFY_FAILURE' };
 
 export interface LoginResponse {
   access: string;
