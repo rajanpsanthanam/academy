@@ -430,6 +430,21 @@ class ApiService {
       const response = await api.delete(`/assessments/${assessmentId}/delete_submission/?submission_id=${submissionId}`);
       return response.data;
     },
+    create: async (data: {
+      assessable_type: string;
+      assessable_id: string;
+      title: string;
+      description: string;
+      assessment_type: string;
+      file_submission?: {
+        allowed_file_types: string[];
+        max_file_size_mb: number;
+        submission_instructions: string;
+      };
+    }) => {
+      const response = await api.post('/assessments/', data);
+      return response.data;
+    },
   };
 }
 
