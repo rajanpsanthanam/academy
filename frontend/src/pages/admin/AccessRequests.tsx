@@ -225,11 +225,11 @@ export default function AccessRequests() {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <div className="relative">
+              <div className="relative h-10">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search by email, organization, status, or processed by..."
-                  className="pl-8"
+                  placeholder="search..."
+                  className="pl-8 h-10"
                   value={searchInput}
                   onChange={handleSearchChange}
                 />
@@ -240,9 +240,9 @@ export default function AccessRequests() {
                 )}
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex items-center h-10">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-[180px] h-10">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -252,27 +252,7 @@ export default function AccessRequests() {
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              <DateRangePicker
-                value={dateRange}
-                onChange={setDateRange}
-              />
             </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="-created_at">Newest First</SelectItem>
-                <SelectItem value="created_at">Oldest First</SelectItem>
-                <SelectItem value="email">Email (A-Z)</SelectItem>
-                <SelectItem value="-email">Email (Z-A)</SelectItem>
-                <SelectItem value="status">Status (A-Z)</SelectItem>
-                <SelectItem value="-status">Status (Z-A)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {requests.length === 0 ? (
@@ -296,7 +276,7 @@ export default function AccessRequests() {
                       <TableCell>{highlightMatch(request.email)}</TableCell>
                       <TableCell>{format(new Date(request.created_at), 'PPpp')}</TableCell>
                       <TableCell>
-                        <Badge variant="default">
+                        <Badge variant="outline" className="border border-primary text-primary">
                           {highlightMatch(request.status.charAt(0).toUpperCase() + request.status.slice(1))}
                         </Badge>
                       </TableCell>

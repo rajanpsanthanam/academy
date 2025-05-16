@@ -24,11 +24,21 @@ export function BaseLayout({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="w-full max-w-[1200px] mx-auto">
-        {showHeader && (
-          <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
-        )}
-        <div className="flex h-[calc(100vh-4rem)]">
+      {/* Main Container */}
+      <div className="min-h-screen flex justify-center">
+        <div className="w-full max-w-[1200px] relative">
+          {/* Fixed Header */}
+          {showHeader && (
+            <div className="fixed top-0 left-0 right-0 z-50 bg-background">
+              <div className="flex justify-center">
+                <div className="w-full max-w-[1200px] border-b">
+                  <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sidebar */}
           {showSidebar && (
             <>
               {/* Mobile Sidebar */}
@@ -43,18 +53,18 @@ export function BaseLayout({
               </div>
               
               {/* Desktop Sidebar */}
-              <div className="hidden lg:block w-64 border-r bg-background">
+              <div className="hidden lg:block fixed top-16 w-64 h-[calc(100vh-4rem)] border-r bg-background">
                 {sidebarType === 'main' ? <MainSidebar /> : <AdminSidebar />}
               </div>
             </>
           )}
-          <main className={`flex-1 ${showSidebar ? 'lg:ml-0' : ''} overflow-y-auto`}>
-            <div className="px-4 py-6">
-              <div className="max-w-3xl mx-auto">
-                {children}
-              </div>
-            </div>
-          </main>
+
+          {/* Content Area */}
+          <div className={`flex-1 ${showSidebar ? 'lg:ml-64' : ''} ${showHeader ? 'mt-16' : ''}`}>
+            <main className="h-full px-4 py-6">
+              {children}
+            </main>
+          </div>
         </div>
       </div>
     </div>

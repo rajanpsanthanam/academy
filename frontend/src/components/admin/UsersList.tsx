@@ -35,9 +35,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { DateRangePicker } from '@/components/ui/date-range-picker';
-import { addDays } from 'date-fns';
-import { DateRange } from 'react-day-picker';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Badge } from '@/components/ui/badge';
 
@@ -58,13 +55,9 @@ export function UsersList() {
   const [totalCount, setTotalCount] = useState(0);
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 800);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: addDays(new Date(), -7),
-    to: new Date(),
-  });
-  const [sortBy, setSortBy] = useState<string>('-last_login');
+  const [sortBy, setSortBy] = useState<string>('-created_at');
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
   const isFirstRender = useRef(true);
 
   const buildQueryString = () => {
@@ -72,12 +65,7 @@ export function UsersList() {
     params.append('page', page.toString());
     params.append('page_size', pageSize.toString());
     if (debouncedSearch) params.append('search', debouncedSearch);
-    if (statusFilter !== 'all') params.append('is_active', statusFilter === 'active' ? 'true' : 'false');
     if (roleFilter !== 'all') params.append('is_staff', roleFilter === 'admin' ? 'true' : 'false');
-    if (dateRange.from && dateRange.to) {
-      params.append('start_date', format(dateRange.from, 'yyyy-MM-dd'));
-      params.append('end_date', format(dateRange.to, 'yyyy-MM-dd'));
-    }
     if (sortBy) params.append('sort_by', sortBy);
     return params.toString();
   };
@@ -120,7 +108,7 @@ export function UsersList() {
     if (!isFirstRender.current) {
       fetchUsers();
     }
-  }, [page, pageSize, statusFilter, roleFilter, dateRange, sortBy]);
+  }, [page, pageSize, roleFilter, sortBy]);
 
   const handleAction = async (id: number, action: 'revoke' | 'restore') => {
     try {
@@ -198,11 +186,11 @@ export function UsersList() {
     <div className="space-y-4">
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
-          <div className="relative">
+          <div className="relative h-10">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by email, name, or organization..."
-              className="pl-8"
+              placeholder="search..."
+              className="pl-8 h-10"
               value={searchInput}
               onChange={handleSearchChange}
             />
@@ -213,19 +201,9 @@ export function UsersList() {
             )}
           </div>
         </div>
-        <div className="flex gap-4">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-4">
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] h-10">
               <SelectValue placeholder="Filter by role" />
             </SelectTrigger>
             <SelectContent>
@@ -234,27 +212,18 @@ export function UsersList() {
               <SelectItem value="user">User</SelectItem>
             </SelectContent>
           </Select>
-          <DateRangePicker
-            value={dateRange}
-            onChange={setDateRange}
-          />
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[180px] h-10">
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="-created_at">Newest First</SelectItem>
+              <SelectItem value="created_at">Oldest First</SelectItem>
+              <SelectItem value="email">Email (A-Z)</SelectItem>
+              <SelectItem value="-email">Email (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort by" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="-last_login">Last Login (Recent)</SelectItem>
-            <SelectItem value="last_login">Last Login (Oldest)</SelectItem>
-            <SelectItem value="-date_joined">Newest First</SelectItem>
-            <SelectItem value="date_joined">Oldest First</SelectItem>
-            <SelectItem value="email">Email (A-Z)</SelectItem>
-            <SelectItem value="-email">Email (Z-A)</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {users.length === 0 ? (
@@ -278,12 +247,12 @@ export function UsersList() {
                 <TableRow key={user.id}>
                   <TableCell>{highlightMatch(user.email)}</TableCell>
                   <TableCell>
-                    <Badge variant="default">
+                    <Badge variant="outline" className="border border-primary text-primary">
                       {user.is_staff ? 'Admin' : 'User'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="default">
+                    <Badge variant="outline" className="border border-primary text-primary">
                       {user.is_active 
                         ? (user.is_approved ? 'Active' : 'Pending Approval')
                         : 'Inactive'

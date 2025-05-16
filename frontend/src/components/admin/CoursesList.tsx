@@ -828,10 +828,10 @@ export function CoursesList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-1">
             <div className="w-64">
               <Input
-                placeholder="Search courses..."
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={handleSearch}
               />
@@ -849,47 +849,24 @@ export function CoursesList() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="w-32">
-            <Select value={pageSize.toString()} onValueChange={(value) => setPageSize(Number(value))}>
-              <SelectTrigger>
-                <SelectValue placeholder="10 per page" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="5">5 per page</SelectItem>
-                <SelectItem value="10">10 per page</SelectItem>
-                <SelectItem value="20">20 per page</SelectItem>
-                <SelectItem value="50">50 per page</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleOrdering('title')}
-            className={ordering.includes('title') ? 'bg-accent' : ''}
-          >
-            Title {ordering === 'title' ? '↑' : ordering === '-title' ? '↓' : ''}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleOrdering('created_at')}
-            className={ordering.includes('created_at') ? 'bg-accent' : ''}
-          >
-            Created {ordering === 'created_at' ? '↑' : ordering === '-created_at' ? '↓' : ''}
-          </Button>
-        </div>
-        <div className="flex items-center justify-between border-t pt-4">
-          <div className="flex items-center gap-2">
-            <Switch
-              id="show-deleted"
-              checked={showDeleted}
-              onCheckedChange={setShowDeleted}
-            />
-            <Label htmlFor="show-deleted">Show Deleted</Label>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOrdering('title')}
+                className={ordering.includes('title') ? 'bg-accent' : ''}
+              >
+                Title {ordering === 'title' ? '↑' : ordering === '-title' ? '↓' : ''}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleOrdering('created_at')}
+                className={ordering.includes('created_at') ? 'bg-accent' : ''}
+              >
+                Created {ordering === 'created_at' ? '↑' : ordering === '-created_at' ? '↓' : ''}
+              </Button>
+            </div>
           </div>
           <AddContentButton
             type="course"
@@ -911,6 +888,16 @@ export function CoursesList() {
               }
             }}
           />
+        </div>
+        <div className="flex items-center justify-between border-t pt-4">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="show-deleted"
+              checked={showDeleted}
+              onCheckedChange={setShowDeleted}
+            />
+            <Label htmlFor="show-deleted">Show Deleted</Label>
+          </div>
         </div>
       </div>
       <div className="space-y-4">
