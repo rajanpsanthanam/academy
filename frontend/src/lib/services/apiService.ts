@@ -300,6 +300,12 @@ class ApiService {
       if (!data?.user_id) {
         throw new Error('user_id is required');
       }
+      // If user_id is 'current', use the regular complete endpoint
+      if (data.user_id === 'current') {
+        const response = await api.post(`/courses/${id}/complete/`);
+        return response.data;
+      }
+      // Otherwise use admin_complete endpoint
       const response = await api.post(`/courses/${id}/admin_complete/`, { user_id: data.user_id });
       return response.data;
     },

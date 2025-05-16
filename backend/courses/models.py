@@ -71,6 +71,14 @@ class Course(models.Model):
             deleted_at__isnull=True
         ).exists()
 
+    def has_assessments(self):
+        """Check if the course has any assessments"""
+        return Assessment.objects.filter(
+            assessable_type='Course',
+            assessable_id=self.id,
+            deleted_at__isnull=True
+        ).exists()
+
 class Module(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     course = models.ForeignKey(Course, related_name='modules', on_delete=models.CASCADE)

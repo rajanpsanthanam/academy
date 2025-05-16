@@ -20,7 +20,7 @@ import os
 logger = logging.getLogger(__name__)
 
 class CoursePagination(PageNumberPagination):
-    page_size = 12  # Show 12 courses per page
+    page_size = 10  # Show 10 courses per page
     page_size_query_param = 'page_size'
     max_page_size = 100  # Maximum number of courses that can be requested per page
 
@@ -317,11 +317,11 @@ class CourseViewSet(viewsets.ModelViewSet):
         try:
             course = self.get_object()
             
-            # Check if course has file submission assessments
-            if course.has_file_submission_assessments():
+            # Check if course has any assessments
+            if course.has_assessments():
                 if not request.user.is_staff:
                     return Response({
-                        'error': 'This course requires admin approval for completion due to file submission assessments',
+                        'error': 'This course requires admin approval for completion due to assessments',
                         'requires_admin_approval': True
                     }, status=status.HTTP_400_BAD_REQUEST)
             
