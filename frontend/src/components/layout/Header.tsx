@@ -49,10 +49,8 @@ export function Header({ onMenuClick }: HeaderProps) {
             <UserMenu />
           </div>
         </div>
-        <div className="w-full md:w-auto md:flex-1 md:max-w-2xl px-4 md:px-0">
+        <div className="hidden md:flex items-center gap-6">
           {!isAdminView && <SearchBar />}
-        </div>
-        <div className="hidden md:block">
           <UserMenu />
         </div>
       </div>

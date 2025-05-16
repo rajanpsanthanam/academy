@@ -9,6 +9,7 @@ interface SidebarItem {
   label: string;
   path: string;
   subItems?: { label: string; path: string }[];
+  className?: string;
 }
 
 interface SidebarProps {
@@ -32,7 +33,7 @@ export function Sidebar({ items, className = '', onClose }: SidebarProps) {
 
   return (
     <div className={`w-64 border-r bg-background h-[calc(100vh-4rem)] ${className}`}>
-      <nav className="flex flex-col gap-1 p-4">
+      <nav className="flex flex-col h-full p-4">
         {onClose && (
           <Button
             variant="ghost"
@@ -52,7 +53,7 @@ export function Sidebar({ items, className = '', onClose }: SidebarProps) {
           const isExpanded = expandedItems.includes(item.path);
           
           return (
-            <div key={item.path} className="flex flex-col">
+            <div key={item.path} className={cn("flex flex-col", item.className)}>
               <Button
                 variant={isActive ? 'secondary' : 'ghost'}
                 className={cn(

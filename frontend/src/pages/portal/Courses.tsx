@@ -96,7 +96,7 @@ function Courses({ filter }: CoursesProps) {
   const [isEnrolling, setIsEnrolling] = useState<{ [key: string]: boolean }>({});
   const location = useLocation();
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize, setPageSize] = useState(10);
   const [totalCount, setTotalCount] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [hasPreviousPage, setHasPreviousPage] = useState(false);

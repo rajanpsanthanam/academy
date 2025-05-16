@@ -7,6 +7,7 @@ class TagAdmin(admin.ModelAdmin):
     search_fields = ('name', 'description')
     ordering = ('name',)
     readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 10
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
@@ -16,6 +17,7 @@ class CourseAdmin(admin.ModelAdmin):
     filter_horizontal = ('tags',)
     ordering = ('-created_at',)
     readonly_fields = ('created_at', 'updated_at', 'deleted_at')
+    list_per_page = 10
 
     def get_queryset(self, request):
         return Course.all_objects.all()
@@ -27,6 +29,7 @@ class ModuleAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description', 'course__title')
     ordering = ('course', 'order')
     readonly_fields = ('created_at', 'updated_at', 'deleted_at')
+    list_per_page = 10
 
     def get_queryset(self, request):
         return Module.all_objects.all()
@@ -38,6 +41,7 @@ class LessonAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description', 'module__title', 'module__course__title')
     ordering = ('module', 'order')
     readonly_fields = ('created_at', 'updated_at', 'deleted_at')
+    list_per_page = 10
 
     def get_queryset(self, request):
         return Lesson.all_objects.all()
@@ -49,6 +53,7 @@ class AssessmentAdmin(admin.ModelAdmin):
     search_fields = ('title', 'description', 'assessable_type')
     ordering = ('-created_at',)
     readonly_fields = ('created_at', 'updated_at', 'deleted_at')
+    list_per_page = 10
 
     def get_queryset(self, request):
         return Assessment.all_objects.all()

@@ -20,9 +20,46 @@ import os
 logger = logging.getLogger(__name__)
 
 class CoursePagination(PageNumberPagination):
-    page_size = 12  # Show 12 courses per page
+    page_size = 10  # Show 10 courses per page
     page_size_query_param = 'page_size'
     max_page_size = 100  # Maximum number of courses that can be requested per page
+
+    def paginate_queryset(self, queryset, request, view=None):
+        logger.info("=== Starting CoursePagination.paginate_queryset ===")
+        logger.info(f"Initial queryset count: {queryset.count()}")
+        
+        # Get the page number from request, default to 1
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', self.page_size))
+        
+        # Calculate start and end indices
+        start = (page - 1) * page_size
+        end = start + page_size
+        
+        # Get the slice of items for this page
+        items = list(queryset[start:end])
+        
+        # Store pagination info for response
+        self.count = queryset.count()
+        self.next_page = page + 1 if end < self.count else None
+        self.previous_page = page - 1 if page > 1 else None
+        self.current_page = page
+        
+        logger.info(f"Page {page}: showing items {start} to {end}")
+        logger.info(f"Items in this page: {len(items)}")
+        logger.info("=== End CoursePagination.paginate_queryset ===")
+        
+        return items
+
+    def get_paginated_response(self, data):
+        return Response({
+            'count': self.count,
+            'next': f"?page={self.next_page}" if self.next_page else None,
+            'previous': f"?page={self.previous_page}" if self.previous_page else None,
+            'current_page': self.current_page,
+            'total_pages': (self.count + self.page_size - 1) // self.page_size,
+            'results': data
+        })
 
 # Create your views here.
 

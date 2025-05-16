@@ -153,8 +153,6 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',  # Default to requiring authentication
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 10,
     'UNAUTHENTICATED_USER': None,  # Return None for unauthenticated users
     'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
 }

@@ -301,7 +301,9 @@ class ApiService {
       if (!data?.user_id) {
         throw new Error('user_id is required');
       }
-      const response = await api.post(`/courses/${id}/admin_complete/`, { user_id: data.user_id });
+      // Use admin_complete only if user_id is not 'current'
+      const endpoint = data.user_id === 'current' ? 'complete' : 'admin_complete';
+      const response = await api.post(`/courses/${id}/${endpoint}/`, { user_id: data.user_id });
       return response.data;
     },
     getEnrollment: async (courseId: string, userId: number): Promise<{ status: string }> => {

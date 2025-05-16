@@ -28,7 +28,7 @@ export function BaseLayout({
         {showHeader && (
           <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         )}
-        <div className="flex min-h-[calc(100vh-4rem)]">
+        <div className="flex h-[calc(100vh-4rem)]">
           {showSidebar && (
             <>
               {/* Mobile Sidebar */}
@@ -48,8 +48,8 @@ export function BaseLayout({
               </div>
             </>
           )}
-          <main className={`flex-1 ${showSidebar ? 'lg:ml-0' : ''}`}>
-            <div className="h-full px-4 py-6">
+          <main className={`flex-1 ${showSidebar ? 'lg:ml-0' : ''} overflow-y-auto`}>
+            <div className="px-4 py-6">
               <div className="max-w-3xl mx-auto">
                 {children}
               </div>
