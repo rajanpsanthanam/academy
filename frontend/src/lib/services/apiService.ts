@@ -309,9 +309,15 @@ class ApiService {
       const response = await api.post(`/courses/${id}/admin_complete/`, { user_id: data.user_id });
       return response.data;
     },
-    getEnrollment: async (courseId: string, userId: number): Promise<{ status: string }> => {
-      const response = await api.get(`/courses/${courseId}/enrollments/${userId}/`);
-      return response.data;
+    getEnrollment: async (courseId: string, userId: string): Promise<CourseEnrollment> => {
+      const response = await api.get(`/enrollments/`, {
+        params: {
+          course: courseId,
+          user: userId
+        }
+      });
+      // Return the first matching enrollment since we're filtering by course and user
+      return response.data.results?.[0] || null;
     },
     modules: {
       list: async (courseId: string, params?: { show_deleted?: boolean }): Promise<Module[]> => {
