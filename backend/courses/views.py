@@ -354,11 +354,11 @@ class CourseViewSet(viewsets.ModelViewSet):
         try:
             course = self.get_object()
             
-            # Check if course has file submission assessments
-            if course.has_file_submission_assessments():
+            # Check if course has any assessments
+            if course.has_assessments():
                 if not request.user.is_staff:
                     return Response({
-                        'error': 'This course requires admin approval for completion due to file submission assessments',
+                        'error': 'This course requires admin approval for completion due to assessments',
                         'requires_admin_approval': True
                     }, status=status.HTTP_400_BAD_REQUEST)
             
