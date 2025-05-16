@@ -12,7 +12,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
     { icon: Users, label: 'Users', path: '/admin/users' },
     { icon: BookOpen, label: 'Courses', path: '/admin/courses' },
     { icon: FileText, label: 'Submissions', path: '/admin/submissions' },
-    { icon: Settings, label: 'Settings', path: '/admin/settings' },
+    { icon: Settings, label: 'Settings', path: '/admin/settings', isBottom: true },
   ];
 
   return <Sidebar items={menuItems} onClose={onClose} />;
